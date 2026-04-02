@@ -366,35 +366,6 @@
     const CONFIG_URL = 'CONFIG_URL_PLACEHOLDER';
 
     /* ─── Utilities ─── */
-    function splitCSVLine(line) {
-      const result = [];
-      let current = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i], nx = line[i + 1];
-        if (ch === '"' && inQuotes && nx === '"') { current += '"'; i++; }
-        else if (ch === '"') { inQuotes = !inQuotes; }
-        else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
-        else { current += ch; }
-      }
-      result.push(current);
-      return result.map(v => v.trim());
-    }
-
-    function parseCSV(csv) {
-      const clean = (csv || '').trim();
-      if (!clean) return [];
-      const lines = clean.split(/\r?\n/);
-      if (lines.length < 2) return [];
-      const headers = splitCSVLine(lines[0]);
-      return lines.slice(1).filter(l => l.trim()).map(line => {
-        const values = splitCSVLine(line);
-        const row = {};
-        headers.forEach((h, i) => row[h] = values[i] ?? '');
-        return row;
-      });
-    }
-
     /* ─── Light/dark ─── */
     function hexToRgb(hex) {
       const h = hex.replace('#', '');
@@ -456,18 +427,6 @@
       `).join('');
     }
 
-    async function fetchBracketCSV(url) {
-      if (!url) return [];
-      try {
-        const text = await fetch(`${url}&t=${Date.now()}`).then(r => r.text());
-        const rows = parseCSV(text);
-        return rows.map(r => r.Player || r.player || r.Name || r.name || '').filter(Boolean);
-      } catch(e) {
-        console.warn('Bracket fetch error:', e);
-        return [];
-      }
-    }
-
     /* ─── Config & init ─── */
     async function init() {
       const loadingEl = document.getElementById('loading-screen');
@@ -476,23 +435,34 @@
 
       try {
         if (!CONFIG_URL || CONFIG_URL === 'https://script.google.com/macros/s/AKfycbyMZkkFaVR9YlTAcX67Ex-4MtaVxt5uxKvBWDQuUDYMYjGSRc88RHW2Q5BmELn-rpM/exec') {
-          throw new Error('CONFIG_URL has not been set.');
+          throw new Error('CONFIG_URL has not been set. Replace CONFIG_URL_PLACEHOLDER in this file with your Apps Script Web App URL.');
         }
 
-        const config = await fetch(`${CONFIG_URL}?mode=config&t=${Date.now()}`)
-          .then(r => { if (!r.ok) throw new Error(`Config request failed: ${r.status}`); return r.json(); });
+        /* Fetch config and brackets in parallel */
+        const [configResp, bracketsResp] = await Promise.all([
+          fetch(CONFIG_URL + '?mode=config&t=' + Date.now()),
+          fetch(CONFIG_URL + '?mode=brackets&t=' + Date.now())
+        ]);
+
+        if (!configResp.ok) throw new Error('Config request failed: ' + configResp.status);
+        const config = await configResp.json();
+
+        let brackets = { bracket1: [], bracket2: [], bracket3: [], bracket4: [] };
+        if (bracketsResp.ok) {
+          brackets = await bracketsResp.json();
+        }
 
         if (config.palette) applyTheme(config.palette);
 
         /* Populate header */
-        document.title = `Brackets — ${config.competitionName || config.tournamentName || 'Golf Sweep'}`;
+        document.title = 'Brackets \u2014 ' + (config.competitionName || config.tournamentName || 'Golf Sweep');
         document.getElementById('page-title').textContent = 'Brackets & Rules';
-        document.getElementById('page-subtitle').textContent = `${config.tournamentName || ''} · Official bracket lists`;
+        document.getElementById('page-subtitle').textContent = (config.tournamentName || '') + ' \u00b7 Official bracket lists';
         if (config.logoUrl) {
           const img = document.createElement('img');
           img.src = config.logoUrl;
           img.alt = config.tournamentName || '';
-          img.onerror = () => {};
+          img.onerror = function() {};
           const logoDiv = document.getElementById('brand-logo');
           logoDiv.innerHTML = ''; logoDiv.appendChild(img);
         }
@@ -504,29 +474,22 @@
           document.getElementById('enter-btn').style.display  = 'none';
         }
         if (config.proShopPhone) {
-          document.getElementById('banner-phone').textContent = `Call ${config.proShopPhone} to submit your picks, or use the online form above.`;
+          document.getElementById('banner-phone').textContent = 'Call ' + config.proShopPhone + ' to submit your picks, or use the online form above.';
         }
-        document.getElementById('banner-title').textContent = `Ready to enter the ${config.competitionName || 'Sweep'}?`;
-        document.getElementById('footer-note').textContent = `${config.competitionName || 'Golf Sweep'} · Bracket lists update automatically`;
+        document.getElementById('banner-title').textContent = 'Ready to enter the ' + (config.competitionName || 'Sweep') + '?';
+        document.getElementById('footer-note').textContent = (config.competitionName || 'Golf Sweep') + ' \u00b7 Bracket lists update automatically';
 
-        /* Fetch and render brackets */
-        const [b1, b2, b3, b4] = await Promise.all([
-          fetchBracketCSV(config.bracket1Csv),
-          fetchBracketCSV(config.bracket2Csv),
-          fetchBracketCSV(config.bracket3Csv),
-          fetchBracketCSV(config.bracket4Csv)
-        ]);
-
-        renderBracket(1, b1);
-        renderBracket(2, b2);
-        renderBracket(3, b3);
-        renderBracket(4, b4);
+        /* Render brackets from JSON */
+        renderBracket(1, brackets.bracket1 || []);
+        renderBracket(2, brackets.bracket2 || []);
+        renderBracket(3, brackets.bracket3 || []);
+        renderBracket(4, brackets.bracket4 || []);
 
         document.getElementById('updated-time').textContent =
-          `Updated ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+          'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
         loadingEl.classList.add('hidden');
-        setTimeout(() => loadingEl.style.display = 'none', 450);
+        setTimeout(function() { loadingEl.style.display = 'none'; }, 450);
         shellEl.style.display = '';
 
       } catch(err) {
