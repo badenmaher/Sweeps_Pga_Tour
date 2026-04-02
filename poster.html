@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Poster</title>
+  <style>
+    :root{--primary:#1f5a3a;--secondary:#163d28;--accent:#d4af37;--bg:#f7f3ea;--text:#1b1b16;--card:#ffffff}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .poster{
+      width:100%;
+      min-height:100vh;
+      padding:24px;
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+    .hero{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:20px;
+      padding:18px 20px;
+      background:linear-gradient(135deg,var(--secondary),var(--primary));
+      color:#fff;
+      border-radius:20px;
+    }
+    .hero-left{display:flex;align-items:center;gap:16px}
+    .hero img{width:72px;height:72px;object-fit:contain;background:#fff;border-radius:16px;padding:8px}
+    .hero h1{margin:0;font-size:2rem;line-height:1.05}
+    .hero p{margin:6px 0 0;font-size:1rem;opacity:.9}
+    .stamp{padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.14);font-weight:700}
+    .brackets{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+      flex:1;
+    }
+    .panel{
+      background:var(--card);
+      border-radius:18px;
+      padding:16px;
+      border:1px solid rgba(0,0,0,.10);
+      box-shadow:0 10px 28px rgba(0,0,0,.08);
+    }
+    .panel h2{
+      margin:0 0 10px;
+      font-size:1rem;
+      color:var(--primary);
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    .players{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px 18px;
+      font-size:.96rem;
+    }
+    .player{
+      padding:6px 0;
+      border-bottom:1px solid rgba(0,0,0,.06);
+    }
+    .footer{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+      font-size:.9rem;
+      opacity:.8;
+    }
+    @media print {
+      @page { size: A3 landscape; margin: 10mm; }
+      body { background:#fff; }
+      .poster { min-height:auto; padding:0; }
+    }
+    @media (max-width: 900px){
+      .brackets{grid-template-columns:1fr}
+      .players{grid-template-columns:1fr}
+      .hero{flex-direction:column;align-items:flex-start}
+    }
+  </style>
+</head>
+<body>
+  <div class="poster">
+    <div class="hero">
+      <div class="hero-left">
+        <img id="logo" alt="Tournament logo" style="display:none;">
+        <div>
+          <h1 id="title">Loading…</h1>
+          <p id="subtitle"></p>
+        </div>
+      </div>
+      <div class="stamp">Official Brackets</div>
+    </div>
+
+    <div class="brackets" id="bracketsWrap"></div>
+
+    <div class="footer">
+      <div>Live data from Google Sheets</div>
+      <div id="footerLock"></div>
+    </div>
+  </div>
+
+  <script>
+    const CONFIG_URL = 'https://script.google.com/macros/s/AKfycbyXuqjPHlltPSQCGJBFj4sEMy5T2NKky_awLvdHbWusucVWCL3Eh8g_5IzH40d1ze98bQ/exec?mode=config';
+
+    const PALETTES = {
+      'Augusta Classic': { primary:'#1f5a3a', secondary:'#163d28', accent:'#d4af37', bg:'#f7f3ea', text:'#1b1b16' },
+      'Tour Blue': { primary:'#123c73', secondary:'#0d2748', accent:'#5fa8ff', bg:'#f5f7fb', text:'#122033' },
+      'Pine & Gold': { primary:'#234b34', secondary:'#2f6b4a', accent:'#d6b25e', bg:'#f6f1e7', text:'#1e241d' },
+      'Slate & Lime': { primary:'#23313f', secondary:'#111a23', accent:'#9acd32', bg:'#f4f6f8', text:'#17202a' },
+      'Midnight Fairway': { primary:'#0f1720', secondary:'#1f2937', accent:'#d9b45b', bg:'#0b0f14', text:'#f3f5f7' }
+    };
+
+    function applyPalette(name){
+      const p = PALETTES[name] || PALETTES['Augusta Classic'];
+      document.documentElement.style.setProperty('--primary', p.primary);
+      document.documentElement.style.setProperty('--secondary', p.secondary);
+      document.documentElement.style.setProperty('--accent', p.accent);
+      document.documentElement.style.setProperty('--bg', p.bg);
+      document.documentElement.style.setProperty('--text', p.text);
+      document.documentElement.style.setProperty('--card', p.bg === '#0b0f14' ? '#111722' : '#ffffff');
+    }
+
+    function splitCSVLine(line){
+      const out=[]; let cur=''; let q=false;
+      for(let i=0;i<line.length;i++){
+        const ch=line[i];
+        if(ch === '"'){
+          if(q && line[i+1] === '"'){ cur += '"'; i++; }
+          else { q = !q; }
+        } else if(ch === ',' && !q){
+          out.push(cur); cur='';
+        } else { cur += ch; }
+      }
+      out.push(cur);
+      return out;
+    }
+
+    function parseCSV(text){
+      const lines = text.trim().split(/\r?\n/);
+      if(!lines.length) return [];
+      const headers = splitCSVLine(lines[0]).map(h => h.trim());
+      return lines.slice(1).filter(Boolean).map(line => {
+        const cells = splitCSVLine(line);
+        const obj = {};
+        headers.forEach((h,i) => obj[h] = (cells[i] || '').trim());
+        return obj;
+      });
+    }
+
+    async function fetchText(url){ const r = await fetch(url); if(!r.ok) throw new Error('fetch failed'); return r.text(); }
+    async function fetchJSON(url){ const r = await fetch(url); if(!r.ok) throw new Error('config failed'); return r.json(); }
+
+    function renderBracket(title, rows){
+      const headers = rows.length ? Object.keys(rows[0]) : [];
+      const playerKey = headers.find(h => ['player','name'].includes(h.toLowerCase())) || headers[0] || 'Player';
+      return `
+        <section class="panel">
+          <h2>${title}</h2>
+          <div class="players">
+            ${rows.map(r => `<div class="player">${r[playerKey] || ''}</div>`).join('')}
+          </div>
+        </section>
+      `;
+    }
+
+    async function init(){
+      const config = await fetchJSON(CONFIG_URL);
+      applyPalette(config.colourway);
+
+      document.getElementById('title').textContent = config.tournamentName || 'Tournament';
+      document.getElementById('subtitle').textContent = config.competitionName || '';
+      if(config.logoUrl){
+        const logo = document.getElementById('logo');
+        logo.src = config.logoUrl;
+        logo.style.display = 'block';
+      }
+      if(config.lockDateTime){
+        document.getElementById('footerLock').textContent = 'Entry deadline: ' + config.lockDateTime;
+      }
+
+      const [b1, b2, b3, b4] = await Promise.all([
+        fetchText(config.bracket1Csv),
+        fetchText(config.bracket2Csv),
+        fetchText(config.bracket3Csv),
+        fetchText(config.bracket4Csv)
+      ]);
+
+      document.getElementById('bracketsWrap').innerHTML =
+        renderBracket('Bracket 1', parseCSV(b1)) +
+        renderBracket('Bracket 2', parseCSV(b2)) +
+        renderBracket('Bracket 3', parseCSV(b3)) +
+        renderBracket('Bracket 4', parseCSV(b4));
+    }
+
+    init().catch(err => {
+      console.error(err);
+      document.getElementById('bracketsWrap').innerHTML = '<p>Could not load bracket feeds.</p>';
+    });
+  </script>
+</body>
+</html>

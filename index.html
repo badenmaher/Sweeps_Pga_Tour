@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tournament Tracker</title>
+  <style>
+    :root{--primary:#1f5a3a;--secondary:#163d28;--accent:#d4af37;--bg:#f7f3ea;--text:#1b1b16;--card:#fff;--border:rgba(0,0,0,.12)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1200px;margin:0 auto;padding:20px 16px 48px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+    .brand{display:flex;gap:14px;align-items:center}
+    .brand img{width:64px;height:64px;object-fit:contain;background:#fff;border-radius:14px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.10)}
+    h1{margin:0;font-size:1.8rem}
+    .sub{margin-top:4px;opacity:.75;font-size:.95rem}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:999px;text-decoration:none;font-weight:700;border:1px solid transparent}
+    .btn-primary{background:var(--primary);color:#fff}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+    .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.07);border:1px solid var(--border)}
+    .card h2{margin:0 0 12px;font-size:1.05rem}
+    table{width:100%;border-collapse:collapse;font-size:.92rem}
+    th,td{text-align:left;padding:8px 6px;border-bottom:1px solid rgba(0,0,0,.08);vertical-align:top}
+    th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;opacity:.7}
+    .bracket-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.06);font-size:.75rem;font-weight:700;margin-bottom:8px}
+    .footer-note{margin-top:18px;font-size:.8rem;opacity:.7}
+    .status{font-size:.82rem;margin-bottom:10px;opacity:.8}
+    @media (max-width:920px){.grid{grid-template-columns:1fr}}
+    @media (max-width:640px){.bracket-grid{grid-template-columns:1fr}h1{font-size:1.45rem}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand">
+        <img id="logo" alt="Tournament logo" style="display:none;">
+        <div>
+          <h1 id="title">Loading tournament…</h1>
+          <div class="sub" id="subtitle">Please wait</div>
+        </div>
+      </div>
+      <div class="actions">
+        <a id="enterBtn" class="btn btn-primary" href="#" target="_blank" rel="noopener noreferrer">Enter now</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Leaderboard</h2>
+        <div class="status" id="leaderStatus">Loading leaderboard…</div>
+        <div id="leaderboardWrap"></div>
+      </div>
+
+      <div class="card">
+        <h2>Field brackets</h2>
+        <div class="status">Public bracket lists from Google Sheets</div>
+        <div class="bracket-grid" id="bracketsWrap"></div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      Participants remain private. This page only reads public bracket feeds, leaderboard feed, and safe config values.
+    </div>
+  </div>
+
+  <script>
+    const CONFIG_URL = 'https://script.google.com/macros/s/AKfycbyXuqjPHlltPSQCGJBFj4sEMy5T2NKky_awLvdHbWusucVWCL3Eh8g_5IzH40d1ze98bQ/exec?mode=config';
+
+    const PALETTES = {
+      'Augusta Classic': { primary:'#1f5a3a', secondary:'#163d28', accent:'#d4af37', bg:'#f7f3ea', text:'#1b1b16' },
+      'Tour Blue': { primary:'#123c73', secondary:'#0d2748', accent:'#5fa8ff', bg:'#f5f7fb', text:'#122033' },
+      'Pine & Gold': { primary:'#234b34', secondary:'#2f6b4a', accent:'#d6b25e', bg:'#f6f1e7', text:'#1e241d' },
+      'Slate & Lime': { primary:'#23313f', secondary:'#111a23', accent:'#9acd32', bg:'#f4f6f8', text:'#17202a' },
+      'Midnight Fairway': { primary:'#0f1720', secondary:'#1f2937', accent:'#d9b45b', bg:'#0b0f14', text:'#f3f5f7' }
+    };
+
+    function applyPalette(name){
+      const p = PALETTES[name] || PALETTES['Augusta Classic'];
+      document.documentElement.style.setProperty('--primary', p.primary);
+      document.documentElement.style.setProperty('--secondary', p.secondary);
+      document.documentElement.style.setProperty('--accent', p.accent);
+      document.documentElement.style.setProperty('--bg', p.bg);
+      document.documentElement.style.setProperty('--text', p.text);
+      document.documentElement.style.setProperty('--card', p.bg === '#0b0f14' ? '#111722' : '#ffffff');
+      document.documentElement.style.setProperty('--border', p.bg === '#0b0f14' ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)');
+    }
+
+    function splitCSVLine(line){
+      const out=[]; let cur=''; let q=false;
+      for(let i=0;i<line.length;i++){
+        const ch=line[i];
+        if(ch === '"'){
+          if(q && line[i+1] === '"'){ cur += '"'; i++; }
+          else { q = !q; }
+        } else if(ch === ',' && !q){
+          out.push(cur); cur='';
+        } else { cur += ch; }
+      }
+      out.push(cur);
+      return out;
+    }
+
+    function parseCSV(text){
+      const lines = text.trim().split(/\r?\n/);
+      if(!lines.length) return [];
+      const headers = splitCSVLine(lines[0]).map(h => h.trim());
+      return lines.slice(1).filter(Boolean).map(line => {
+        const cells = splitCSVLine(line);
+        const obj = {};
+        headers.forEach((h,i) => obj[h] = (cells[i] || '').trim());
+        return obj;
+      });
+    }
+
+    async function fetchText(url){
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Fetch failed: ' + url);
+      return res.text();
+    }
+
+    async function fetchJSON(url){
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('Config fetch failed');
+      return res.json();
+    }
+
+    function renderLeaderboard(rows){
+      const wrap = document.getElementById('leaderboardWrap');
+      if(!rows.length){ wrap.innerHTML = '<p>No leaderboard data yet.</p>'; return; }
+
+      const headers = Object.keys(rows[0]);
+      const rankKey = headers.find(h => h.toLowerCase() === 'rank') || headers[0];
+      const nameKey = headers.find(h => h.toLowerCase() === 'name') || headers[1];
+      const scoreKey = headers.find(h => h.toLowerCase() === 'totalscore') || headers[2];
+      const moveKey = headers.find(h => h.toLowerCase() === 'move') || '';
+
+      let html = '<table><thead><tr><th>Rank</th><th>Name</th><th>Score</th><th>Move</th></tr></thead><tbody>';
+      rows.slice(0,20).forEach(r => {
+        html += `<tr><td>${r[rankKey]||''}</td><td>${r[nameKey]||''}</td><td>${r[scoreKey]||''}</td><td>${moveKey ? (r[moveKey]||'') : ''}</td></tr>`;
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+      document.getElementById('leaderStatus').textContent = 'Top 20 shown';
+    }
+
+    function renderBracketCard(title, rows){
+      const headers = rows.length ? Object.keys(rows[0]) : [];
+      const playerKey = headers.find(h => ['player','name'].includes(h.toLowerCase())) || headers[0] || 'Player';
+      let html = `<div class="card" style="padding:14px;"><div class="pill">${title}</div><table><tbody>`;
+      rows.forEach(r => { html += `<tr><td>${r[playerKey] || ''}</td></tr>`; });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    async function init(){
+      try {
+        const config = await fetchJSON(CONFIG_URL);
+        applyPalette(config.colourway);
+        document.getElementById('title').textContent = config.tournamentName || 'Tournament';
+        document.getElementById('subtitle').textContent = config.competitionName || '';
+        if(config.logoUrl){
+          const logo = document.getElementById('logo');
+          logo.src = config.logoUrl;
+          logo.style.display = 'block';
+        }
+        if(config.entryWebAppUrl){
+          document.getElementById('enterBtn').href = config.entryWebAppUrl;
+        }
+
+        const [leaderText, b1, b2, b3, b4] = await Promise.all([
+          fetchText(config.leaderboardCsv),
+          fetchText(config.bracket1Csv),
+          fetchText(config.bracket2Csv),
+          fetchText(config.bracket3Csv),
+          fetchText(config.bracket4Csv)
+        ]);
+
+        renderLeaderboard(parseCSV(leaderText));
+
+        document.getElementById('bracketsWrap').innerHTML =
+          renderBracketCard('Bracket 1', parseCSV(b1)) +
+          renderBracketCard('Bracket 2', parseCSV(b2)) +
+          renderBracketCard('Bracket 3', parseCSV(b3)) +
+          renderBracketCard('Bracket 4', parseCSV(b4));
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById('leaderStatus').textContent = 'Could not load live data';
+        document.getElementById('leaderboardWrap').innerHTML = '<p>Check config JSON and CSV publishing.</p>';
+        document.getElementById('bracketsWrap').innerHTML = '<p>Bracket feeds unavailable.</p>';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
