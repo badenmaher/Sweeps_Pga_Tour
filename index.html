@@ -395,7 +395,7 @@
   <div id="error-screen">
     <div class="error-icon">⚠️</div>
     <h2 class="error-title">Couldn't load configuration</h2>
-    <p class="error-msg" id="error-msg">The sweep config could not be fetched. Please check the URL and try again.</p>
+    <p class="error-msg" id="error-msg">The sweep config could not be fetched. Please check the CONFIG_URL and try again.</p>
     <button class="error-retry" onclick="location.reload()">Try Again</button>
   </div>
 
@@ -529,7 +529,7 @@
 
   <script>
     /* ═══════════════════════════════════════════════════
-       CONFIGURATION — update URL to your deployed
+       CONFIGURATION — update CONFIG_URL to your deployed
        Google Apps Script URL before going live.
     ═══════════════════════════════════════════════════ */
     const CONFIG_URL = 'https://script.google.com/macros/s/AKfycbyMZkkFaVR9YlTAcX67Ex-4MtaVxt5uxKvBWDQuUDYMYjGSRc88RHW2Q5BmELn-rpM/exec';
@@ -691,23 +691,23 @@
     /* ─── Demo fallback data ─── */
     const DEMO_DATA = {
       leaderboard: [
-        { rank: 1, name: 'Michael Brennan',  totalScore: -14, prev: '2',  move: '▲1' },
-        { rank: 2, name: 'Patrick Doyle',    totalScore: -12, prev: '1',  move: '▼1' },
-        { rank: 3, name: 'Stephen Kearney',  totalScore: -10, prev: '4',  move: '▲1' },
-        { rank: 4, name: 'Daniel Murphy',    totalScore: -8,  prev: '3',  move: '▼1' },
-        { rank: 5, name: 'Andrew Collins',   totalScore: -6,  prev: '5',  move: '–'  },
-        { rank: 6, name: 'James Nolan',      totalScore: -4,  prev: '7',  move: '▲1' },
-        { rank: 7, name: 'Ciara Walsh',      totalScore: -2,  prev: '6',  move: '▼1' },
-        { rank: 8, name: 'Brendan Sheahan',  totalScore:  0,  prev: '8',  move: '–'  }
+        { rank: 1, name: 'Demo Michael Brennan',  totalScore: -14, prev: '2',  move: '▲1' },
+        { rank: 2, name: 'Demo Patrick Doyle',    totalScore: -12, prev: '1',  move: '▼1' },
+        { rank: 3, name: 'Demo Stephen Kearney',  totalScore: -10, prev: '4',  move: '▲1' },
+        { rank: 4, name: 'Demo Daniel Murphy',    totalScore: -8,  prev: '3',  move: '▼1' },
+        { rank: 5, name: 'Demo Andrew Collins',   totalScore: -6,  prev: '5',  move: '–'  },
+        { rank: 6, name: 'Demo James Nolan',      totalScore: -4,  prev: '7',  move: '▲1' },
+        { rank: 7, name: 'Demo Ciara Walsh',      totalScore: -2,  prev: '6',  move: '▼1' },
+        { rank: 8, name: 'Demo Brendan Sheahan',  totalScore:  0,  prev: '8',  move: '–'  }
       ],
       highlights: [
         {
           date: new Date().toLocaleDateString('en-IE'),
           round: 'Round 2',
-          leader: 'Michael Brennan',
+          leader: 'Demo Michael Brennan',
           leaderScore: '-14',
-          biggestRiser: 'Stephen Kearney (▲1)',
-          biggestFaller: 'Patrick Doyle (▼1)'
+          biggestRiser: 'Demo Stephen Kearney (▲1)',
+          biggestFaller: 'Demo Patrick Doyle (▼1)'
         }
       ],
       podium: []
