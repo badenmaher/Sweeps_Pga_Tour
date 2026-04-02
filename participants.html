@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All Entries — Golf Sweep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:   #123c73;
+      --secondary: #0d2748;
+      --accent:    #5fa8ff;
+      --bg:        #f5f7fb;
+      --text:      #122033;
+      --card:      #ffffff;
+      --card2:     #eef1f7;
+      --line:      rgba(18,60,115,.12);
+      --muted:     #6b7a99;
+      --soft:      #4a5670;
+      --shadow:    0 14px 36px rgba(0,0,0,.09);
+      --hero-bg:   #0d2748;
+      --radius:    18px;
+      --max:       1180px;
+      --b1: #123c73;
+      --b2: #3662a1;
+      --b3: #2f7db8;
+      --b4: #0a5a87;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* Loading */
+    #loading-screen {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--secondary); display: flex; align-items: center;
+      justify-content: center; flex-direction: column; gap: 16px;
+      color: #fff; transition: opacity 0.4s;
+    }
+    #loading-screen.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,.2); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    #error-screen {
+      display: none; position: fixed; inset: 0; z-index: 99;
+      background: var(--bg); align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px; padding: 32px; text-align: center;
+    }
+    #error-screen.show { display: flex; }
+    .error-retry {
+      margin-top: 8px; padding: 12px 24px; border-radius: 999px;
+      background: var(--primary); color: #fff; border: none;
+      cursor: pointer; font-weight: 700; font-size: 1rem;
+    }
+
+    .container { width: min(100% - 32px, var(--max)); margin: 0 auto; }
+
+    /* Hero */
+    .hero {
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      background: var(--hero-bg);
+    }
+    .hero-inner {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 24px; padding: 26px 0 20px;
+    }
+    .brand { display: flex; align-items: center; gap: 16px; }
+    .brand-logo {
+      width: 46px; height: 46px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.28); overflow: hidden;
+      display: grid; place-items: center; background: rgba(255,255,255,.1);
+      flex-shrink: 0;
+    }
+    .brand-logo img { width: 100%; height: 100%; object-fit: contain; }
+    .brand-logo .logo-fallback { color: rgba(255,255,255,.9); }
+    .brand-logo .logo-fallback svg { width: 22px; height: 22px; }
+    h1 {
+      margin: 0; font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.5rem, 3vw, 2.6rem); line-height: 1.05; color: #fff;
+    }
+    .subtitle { margin: 4px 0 0; color: rgba(255,255,255,.6); font-size: .96rem; }
+    .hero-links { display: flex; gap: 10px; flex-wrap: wrap; }
+    .hero-link {
+      display: inline-flex; align-items: center;
+      padding: 9px 16px; border: 1px solid rgba(255,255,255,.22);
+      border-radius: 999px; color: rgba(255,255,255,.82);
+      font-weight: 700; font-size: .88rem; text-decoration: none;
+      transition: background 0.2s;
+    }
+    .hero-link:hover { background: rgba(255,255,255,.1); }
+
+    /* Toolbar */
+    .toolbar {
+      padding: 24px 0 8px;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 16px; flex-wrap: wrap;
+    }
+    .toolbar-left h2 {
+      margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--primary);
+    }
+    .toolbar-left p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+    .search-wrap { flex: 1; max-width: 360px; position: relative; }
+    .search-icon {
+      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); pointer-events: none;
+    }
+    .search-input {
+      width: 100%; padding: 11px 14px 11px 38px;
+      border-radius: 12px; border: 1px solid var(--line);
+      background: var(--card); color: var(--text); font-family: inherit;
+      font-size: .93rem; outline: none; transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .search-input::placeholder { color: var(--muted); }
+
+    /* Grid */
+    .entries-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px; padding-bottom: 40px;
+    }
+    .entry-card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+      transition: box-shadow 0.2s, transform 0.15s;
+    }
+    .entry-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.13); transform: translateY(-2px); }
+    .entry-name {
+      font-size: 1.02rem; font-weight: 800; color: var(--primary);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .entry-num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--card2); color: var(--muted);
+      font-size: .74rem; font-weight: 700; flex-shrink: 0;
+    }
+    .bracket-group { display: grid; gap: 7px; }
+    .bracket-row {
+      background: var(--card2); border-radius: 10px; padding: 8px 11px;
+    }
+    .bracket-label {
+      font-size: .69rem; text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); margin-bottom: 6px; font-weight: 700;
+    }
+    .bracket-picks { display: flex; flex-wrap: wrap; gap: 5px; }
+    .pick-tag {
+      display: inline-flex; align-items: center;
+      padding: 4px 9px; border-radius: 999px;
+      font-size: .82rem; font-weight: 700; color: #fff;
+    }
+    .pick-b1 { background: var(--b1); }
+    .pick-b2 { background: var(--b2); }
+    .pick-b3 { background: var(--b3); }
+    .pick-b4 { background: var(--b4); }
+    .entry-tb {
+      margin-top: 10px; font-size: .8rem; color: var(--muted);
+      border-top: 1px solid var(--line); padding-top: 8px;
+    }
+
+    /* Empty / loading */
+    .empty-state {
+      grid-column: 1/-1; padding: 56px 20px;
+      text-align: center; color: var(--muted); font-size: .96rem;
+    }
+    .empty-icon { font-size: 2rem; margin-bottom: 10px; }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .hero-inner { flex-direction: column; align-items: flex-start; }
+      .toolbar { flex-direction: column; align-items: flex-start; }
+      .search-wrap { max-width: 100%; width: 100%; }
+    }
+    @media (max-width: 440px) { h1 { font-size: 1.35rem; } }
+  </style>
+</head>
+<body>
+
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <div>Loading entries…</div>
+  </div>
+
+  <div id="error-screen">
+    <div style="font-size:2.5rem">⚠️</div>
+    <h2 style="margin:0;font-size:1.3rem;color:var(--text)">Couldn't load configuration</h2>
+    <p style="color:var(--muted);max-width:400px" id="error-msg">Please check the CONFIG_URL.</p>
+    <button class="error-retry" onclick="location.reload()">Try Again</button>
+  </div>
+
+  <div id="shell" style="display:none">
+    <header class="hero">
+      <div class="container hero-inner">
+        <div class="brand">
+          <div class="brand-logo" id="brand-logo">
+            <div class="logo-fallback">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 3c2.5 4 2.5 14 0 18M3 12c4-2.5 14-2.5 18 0"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h1 id="page-title">All Entries</h1>
+            <p class="subtitle" id="page-subtitle">Participant picks</p>
+          </div>
+        </div>
+        <div class="hero-links">
+          <a class="hero-link" href="./index.html">← Back to Sweep</a>
+          <a class="hero-link" href="./brackets.html">Brackets ↗</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="container">
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <h2 id="entries-heading">All Entries</h2>
+            <p id="entries-count">Loading…</p>
+          </div>
+          <div class="search-wrap">
+            <span class="search-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </span>
+            <input id="search-input" class="search-input" type="text"
+              placeholder="Search participant or golfer…" autocomplete="off">
+          </div>
+        </div>
+
+        <div id="entries-grid" class="entries-grid">
+          <div class="empty-state">
+            <div class="empty-icon">⏳</div>
+            Loading entries…
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    /* ══════════════════════════════════════════
+       CONFIG_URL — replace with your Apps Script URL
+    ══════════════════════════════════════════ */
+    const CONFIG_URL = 'CONFIG_URL_PLACEHOLDER';
+
+    let allEntries = [];
+    let searchTerm = '';
+
+    /* ─── Utilities ─── */
+    function splitCSVLine(line) {
+      const result = [];
+      let current = '', inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i], nx = line[i+1];
+        if (ch==='"' && inQuotes && nx==='"') { current+='"'; i++; }
+        else if (ch==='"') { inQuotes=!inQuotes; }
+        else if (ch===',' && !inQuotes) { result.push(current); current=''; }
+        else { current+=ch; }
+      }
+      result.push(current);
+      return result.map(v=>v.trim());
+    }
+    function parseCSV(csv) {
+      const clean=(csv||'').trim();
+      if(!clean) return [];
+      const lines=clean.split(/\r?\n/);
+      if(lines.length<2) return [];
+      const headers=splitCSVLine(lines[0]);
+      return lines.slice(1).filter(l=>l.trim()).map(line=>{
+        const values=splitCSVLine(line);
+        const row={};
+        headers.forEach((h,i)=>row[h]=values[i]??'');
+        return row;
+      });
+    }
+
+    /* ─── Light/dark / theme ─── */
+    function hexToRgb(hex){
+      const h=hex.replace('#','');
+      const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16);
+      return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+    }
+    function isLight(hex){const{r,g,b}=hexToRgb(hex);return 0.299*r+0.587*g+0.114*b>128;}
+    function lighten(hex,amt){let{r,g,b}=hexToRgb(hex);r=Math.min(255,r+amt);g=Math.min(255,g+amt);b=Math.min(255,b+amt);return'#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+    function darken(hex,amt){let{r,g,b}=hexToRgb(hex);r=Math.max(0,r-amt);g=Math.max(0,g-amt);b=Math.max(0,b-amt);return'#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+
+    function applyTheme(palette){
+      const root=document.documentElement;
+      const{primary,secondary,accent,bg,text}=palette;
+      root.style.setProperty('--primary',primary);
+      root.style.setProperty('--secondary',secondary);
+      root.style.setProperty('--accent',accent);
+      root.style.setProperty('--bg',bg);
+      root.style.setProperty('--text',text);
+      root.style.setProperty('--hero-bg',secondary);
+      const dark=!isLight(bg);
+      root.style.setProperty('--card',dark?lighten(bg,14):'#ffffff');
+      root.style.setProperty('--card2',dark?lighten(bg,8):darken('#ffffff',8));
+      root.style.setProperty('--line',dark?'rgba(255,255,255,.1)':'rgba(0,0,0,.09)');
+      root.style.setProperty('--soft',dark?lighten(text,60):darken(text,10));
+      root.style.setProperty('--muted',dark?lighten(text,40):'#6b7a99');
+      root.style.setProperty('--shadow',dark?'0 14px 36px rgba(0,0,0,.3)':'0 14px 36px rgba(0,0,0,.09)');
+      root.style.setProperty('--b1',primary);
+      root.style.setProperty('--b2',lighten(primary,28));
+      root.style.setProperty('--b3',darken(accent,30));
+      root.style.setProperty('--b4',darken(accent,55));
+    }
+
+    /* ─── Render entries ─── */
+    function render() {
+      const grid   = document.getElementById('entries-grid');
+      const countEl = document.getElementById('entries-count');
+      const term   = searchTerm.toLowerCase().trim();
+
+      const filtered = allEntries.filter(e => {
+        if (!term) return true;
+        return e.name.toLowerCase().includes(term) || e.picks.some(p => p.toLowerCase().includes(term));
+      });
+
+      countEl.textContent = filtered.length === allEntries.length
+        ? `${allEntries.length} participant${allEntries.length !== 1 ? 's' : ''}`
+        : `${filtered.length} of ${allEntries.length} participants`;
+
+      if (!filtered.length) {
+        grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>No entries match "${searchTerm}"</div>`;
+        return;
+      }
+
+      const labels  = ['Bracket 1','Bracket 2','Bracket 3','Bracket 4'];
+      const classes = ['b1','b2','b3','b4'];
+
+      grid.innerHTML = filtered.map((entry, idx) => {
+        const rows = [0,1,2,3].map(bi => {
+          const p1 = entry.picks[bi*2]   || '';
+          const p2 = entry.picks[bi*2+1] || '';
+          if (!p1 && !p2) return '';
+          return `<div class="bracket-row">
+            <div class="bracket-label">${labels[bi]}</div>
+            <div class="bracket-picks">
+              ${p1 ? `<span class="pick-tag pick-${classes[bi]}">${p1}</span>` : ''}
+              ${p2 ? `<span class="pick-tag pick-${classes[bi]}">${p2}</span>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+
+        return `<article class="entry-card">
+          <div class="entry-name">
+            <span class="entry-num">${idx+1}</span>
+            ${entry.name}
+          </div>
+          <div class="bracket-group">${rows}</div>
+          ${entry.tieBreaker ? `<div class="entry-tb">Tie-breaker: ${entry.tieBreaker}</div>` : ''}
+        </article>`;
+      }).join('');
+    }
+
+    /* ─── Init ─── */
+    async function init() {
+      const loadingEl = document.getElementById('loading-screen');
+      const errorEl   = document.getElementById('error-screen');
+      const shellEl   = document.getElementById('shell');
+
+      try {
+        if (!CONFIG_URL || CONFIG_URL === 'https://script.google.com/macros/s/AKfycbyMZkkFaVR9YlTAcX67Ex-4MtaVxt5uxKvBWDQuUDYMYjGSRc88RHW2Q5BmELn-rpM/exec') {
+          throw new Error('CONFIG_URL has not been set.');
+        }
+
+        const config = await fetch(`${CONFIG_URL}?mode=config&t=${Date.now()}`)
+          .then(r => { if (!r.ok) throw new Error(`Config failed: ${r.status}`); return r.json(); });
+
+        if (config.palette) applyTheme(config.palette);
+
+        /* Header */
+        document.title = `All Entries — ${config.competitionName || config.tournamentName || 'Golf Sweep'}`;
+        document.getElementById('page-title').textContent = 'All Entries';
+        document.getElementById('page-subtitle').textContent = `${config.tournamentName || ''} · Participant picks`;
+        document.getElementById('entries-heading').textContent = `${config.competitionName || 'Sweep'} Entries`;
+
+        if (config.logoUrl) {
+          const img = document.createElement('img');
+          img.src = config.logoUrl; img.alt = config.tournamentName || '';
+          img.onerror = () => {};
+          const logoDiv = document.getElementById('brand-logo');
+          logoDiv.innerHTML = ''; logoDiv.appendChild(img);
+        }
+
+        /* Fetch participants CSV */
+        if (!config.participantsCsv) throw new Error('participantsCsv not found in config.');
+
+        const text = await fetch(`${config.participantsCsv}&t=${Date.now()}`).then(r => r.text());
+        const rows = parseCSV(text);
+
+        allEntries = rows.map(r => ({
+          name:       r.Name || '',
+          picks:      [r.B1Pick1||'', r.B1Pick2||'', r.B2Pick1||'', r.B2Pick2||'',
+                       r.B3Pick1||'', r.B3Pick2||'', r.B4Pick1||'', r.B4Pick2||''],
+          tieBreaker: r.TieBreaker || ''
+        })).filter(r => r.name);
+
+        render();
+
+        loadingEl.classList.add('hidden');
+        setTimeout(() => loadingEl.style.display = 'none', 450);
+        shellEl.style.display = '';
+
+      } catch(err) {
+        console.error(err);
+        loadingEl.style.display = 'none';
+        document.getElementById('error-msg').textContent = err.message;
+        errorEl.classList.add('show');
+      }
+    }
+
+    document.getElementById('search-input').addEventListener('input', e => {
+      searchTerm = e.target.value || '';
+      render();
+    });
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
