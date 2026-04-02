@@ -1,204 +1,694 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Poster</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Poster — Golf Sweep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--primary:#1f5a3a;--secondary:#163d28;--accent:#d4af37;--bg:#f7f3ea;--text:#1b1b16;--card:#ffffff}
-    *{box-sizing:border-box}
-    body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    .poster{
-      width:100%;
-      min-height:100vh;
-      padding:24px;
-      display:flex;
-      flex-direction:column;
-      gap:18px;
+    /* ── Print setup ── */
+    @page { size: A3 portrait; margin: 12mm; }
+
+    :root {
+      --primary:   #123c73;
+      --secondary: #0d2748;
+      --accent:    #5fa8ff;
+      --bg:        #f5f7fb;
+      --text:      #122033;
+      --card:      #ffffff;
+      --card2:     #eef1f7;
+      --line:      rgba(18,60,115,.15);
+      --muted:     #6b7a99;
+      --soft:      #4a5670;
+      --hero-bg:   #0d2748;
+      --b1: #123c73;
+      --b2: #3662a1;
+      --b3: #2f7db8;
+      --b4: #0a5a87;
     }
-    .hero{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:20px;
-      padding:18px 20px;
-      background:linear-gradient(135deg,var(--secondary),var(--primary));
-      color:#fff;
-      border-radius:20px;
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0; font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--text);
     }
-    .hero-left{display:flex;align-items:center;gap:16px}
-    .hero img{width:72px;height:72px;object-fit:contain;background:#fff;border-radius:16px;padding:8px}
-    .hero h1{margin:0;font-size:2rem;line-height:1.05}
-    .hero p{margin:6px 0 0;font-size:1rem;opacity:.9}
-    .stamp{padding:10px 14px;border-radius:999px;background:rgba(255,255,255,.14);font-weight:700}
-    .brackets{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:16px;
-      flex:1;
+
+    /* ── Screen loading overlay ── */
+    #loading-screen {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--secondary); display: flex; align-items: center;
+      justify-content: center; flex-direction: column; gap: 16px;
+      color: #fff; transition: opacity 0.4s;
     }
-    .panel{
-      background:var(--card);
-      border-radius:18px;
-      padding:16px;
-      border:1px solid rgba(0,0,0,.10);
-      box-shadow:0 10px 28px rgba(0,0,0,.08);
+    #loading-screen.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,.2); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
     }
-    .panel h2{
-      margin:0 0 10px;
-      font-size:1rem;
-      color:var(--primary);
-      text-transform:uppercase;
-      letter-spacing:.04em;
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    #error-screen {
+      display: none; position: fixed; inset: 0; z-index: 99;
+      background: var(--bg); align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px; padding: 32px; text-align: center;
     }
-    .players{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:8px 18px;
-      font-size:.96rem;
+    #error-screen.show { display: flex; }
+    .error-retry {
+      margin-top: 8px; padding: 12px 24px; border-radius: 999px;
+      background: var(--primary); color: #fff; border: none;
+      cursor: pointer; font-weight: 700; font-size: 1rem;
     }
-    .player{
-      padding:6px 0;
-      border-bottom:1px solid rgba(0,0,0,.06);
+
+    /* ── Screen-only toolbar ── */
+    .screen-toolbar {
+      background: var(--hero-bg); padding: 14px 0;
+      border-bottom: 1px solid rgba(255,255,255,.1);
     }
-    .footer{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:16px;
-      font-size:.9rem;
-      opacity:.8;
+    .screen-toolbar .inner {
+      width: min(100% - 32px, 900px); margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
     }
+    .toolbar-left { color: rgba(255,255,255,.8); font-size: .9rem; }
+    .toolbar-left strong { color: #fff; }
+    .toolbar-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 9px 18px; border-radius: 999px; font-weight: 700;
+      font-size: .88rem; cursor: pointer; text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: var(--accent); color: #fff; border: none; }
+    .btn-ghost {
+      background: rgba(255,255,255,.12); color: rgba(255,255,255,.85);
+      border: 1px solid rgba(255,255,255,.2);
+    }
+
+    /* ── Poster page wrapper ── */
+    #poster-shell { display: none; }
+
+    .poster-page {
+      width: 297mm;
+      min-height: 420mm;
+      margin: 24px auto;
+      background: var(--bg);
+      box-shadow: 0 24px 60px rgba(0,0,0,.18);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Poster hero ── */
+    .poster-hero {
+      background: var(--hero-bg);
+      padding: 16mm 14mm 12mm;
+      position: relative;
+      overflow: hidden;
+    }
+    .poster-hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 30% 50%, rgba(255,255,255,.06), transparent 55%);
+      pointer-events: none;
+    }
+    .poster-eyebrow {
+      text-transform: uppercase; letter-spacing: .16em;
+      color: rgba(255,255,255,.55); font-size: 9pt; margin-bottom: 5mm;
+      font-weight: 700;
+    }
+    .poster-logo-wrap {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 6mm;
+    }
+    .poster-logo-circle {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.35); overflow: hidden;
+      display: grid; place-items: center; background: rgba(255,255,255,.1);
+      flex-shrink: 0;
+    }
+    .poster-logo-circle img { width: 100%; height: 100%; object-fit: contain; }
+    .poster-logo-circle .logo-fallback { color: rgba(255,255,255,.85); }
+    .poster-logo-circle .logo-fallback svg { width: 26px; height: 26px; }
+    .poster-h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 34pt; line-height: 1.05; color: #fff; margin: 0;
+    }
+    .poster-subtitle {
+      color: rgba(255,255,255,.72); font-size: 13pt; margin: 3mm 0 0;
+    }
+
+    .poster-meta-row {
+      display: flex; align-items: center; gap: 16mm;
+      margin-top: 8mm; flex-wrap: wrap;
+    }
+    .poster-cta {
+      font-size: 16pt; font-weight: 800; color: #fff;
+      background: var(--accent); padding: 3.5mm 8mm;
+      border-radius: 999px; display: inline-block;
+    }
+    .poster-rule-pills {
+      display: flex; gap: 3mm; flex-wrap: wrap;
+    }
+    .rule-pill {
+      border: 1.5px solid rgba(255,255,255,.3); border-radius: 999px;
+      padding: 2mm 5mm; font-size: 9pt; color: rgba(255,255,255,.75);
+      font-weight: 600;
+    }
+
+    /* ── Poster body ── */
+    .poster-body { padding: 10mm 14mm 8mm; }
+
+    /* ── Brackets 2×2 ── */
+    .brackets-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18pt; color: var(--primary); margin: 0 0 6mm;
+    }
+    .brackets-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 7mm;
+      margin-bottom: 9mm;
+    }
+    .bracket-panel {
+      border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+      background: var(--card);
+    }
+    .bracket-panel-head {
+      padding: 4mm 5mm; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--card2);
+    }
+    .bracket-panel-name {
+      font-size: 11pt; font-weight: 800; color: var(--primary); margin: 0;
+    }
+    .bracket-badge {
+      padding: 1.5mm 4mm; border-radius: 999px; font-size: 7.5pt;
+      font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #fff;
+    }
+    .badge-b1 { background: var(--b1); }
+    .badge-b2 { background: var(--b2); }
+    .badge-b3 { background: var(--b3); }
+    .badge-b4 { background: var(--b4); }
+    .bracket-players {
+      list-style: none; margin: 0; padding: 0;
+    }
+    .bracket-players li {
+      display: flex; align-items: center; gap: 3mm;
+      padding: 2.2mm 5mm; border-bottom: 1px solid var(--line);
+      font-size: 9.5pt; color: var(--text);
+    }
+    .bracket-players li:last-child { border-bottom: none; }
+    .pnum { color: var(--muted); font-weight: 700; min-width: 5mm; font-size: 8.5pt; }
+
+    /* ── Rules & info ── */
+    .info-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm;
+      margin-bottom: 9mm;
+    }
+    .info-card {
+      border: 1px solid var(--line); border-radius: 12px;
+      padding: 5mm; background: var(--card);
+    }
+    .info-icon { font-size: 14pt; margin-bottom: 3mm; }
+    .info-title { font-size: 10pt; font-weight: 800; color: var(--primary); margin: 0 0 3mm; }
+    .info-list { margin: 0; padding-left: 4mm; }
+    .info-list li { font-size: 9pt; color: var(--soft); line-height: 1.6; }
+
+    /* ── QR / entry row ── */
+    .entry-row {
+      display: flex; gap: 6mm; align-items: stretch; margin-bottom: 8mm;
+    }
+    .qr-box {
+      border: 2px dashed var(--line); border-radius: 12px;
+      width: 38mm; min-height: 38mm; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2mm;
+      background: var(--card); flex-shrink: 0; text-align: center;
+      padding: 4mm;
+    }
+    .qr-placeholder {
+      width: 28mm; height: 28mm; background: var(--card2);
+      border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    }
+    .qr-placeholder svg { width: 22mm; height: 22mm; opacity: .3; }
+    .qr-label { font-size: 7.5pt; color: var(--muted); text-align: center; }
+    .entry-card-box {
+      flex: 1; border: 1.5px solid var(--accent); border-radius: 12px;
+      padding: 6mm; background: var(--card);
+    }
+    .entry-card-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16pt; color: var(--primary); margin: 0 0 3mm;
+    }
+    .entry-card-steps { margin: 0; padding-left: 5mm; }
+    .entry-card-steps li { font-size: 9.5pt; color: var(--soft); line-height: 1.7; }
+    .entry-card-steps li strong { color: var(--primary); }
+    .entry-url { font-size: 9pt; color: var(--muted); margin-top: 3mm; word-break: break-all; }
+
+    /* ── Footer ── */
+    .poster-footer {
+      border-top: 1.5px solid var(--line); padding: 5mm 14mm;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 8.5pt; color: var(--muted); background: var(--card);
+    }
+    .footer-left strong { color: var(--primary); }
+
+    /* ── Page 2: participants ── */
+    .poster-page-2 {
+      width: 297mm;
+      min-height: 420mm;
+      margin: 0 auto 40px;
+      background: var(--bg);
+      box-shadow: 0 24px 60px rgba(0,0,0,.18);
+      padding: 12mm 14mm 10mm;
+      page-break-before: always;
+    }
+    .page2-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26pt; color: var(--primary); margin: 0 0 2mm;
+    }
+    .page2-sub { color: var(--muted); font-size: 10pt; margin: 0 0 8mm; }
+    .participants-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm;
+    }
+    .participant-card {
+      border: 1px solid var(--line); border-radius: 10px;
+      padding: 4mm; background: var(--card);
+      break-inside: avoid;
+    }
+    .p-name {
+      font-size: 10pt; font-weight: 800; color: var(--primary); margin-bottom: 3mm;
+    }
+    .p-brackets { display: grid; gap: 2.5mm; }
+    .p-bracket-row {
+      background: var(--card2); border-radius: 6px; padding: 2mm 3mm;
+    }
+    .p-bracket-label {
+      font-size: 6.5pt; text-transform: uppercase; letter-spacing: .07em;
+      color: var(--muted); margin-bottom: 1.5mm; font-weight: 700;
+    }
+    .p-picks { display: flex; flex-wrap: wrap; gap: 1.5mm; }
+    .p-pick {
+      display: inline-block; padding: 1mm 2.5mm; border-radius: 999px;
+      font-size: 8pt; font-weight: 700; color: #fff;
+    }
+    .p-pick-b1 { background: var(--b1); }
+    .p-pick-b2 { background: var(--b2); }
+    .p-pick-b3 { background: var(--b3); }
+    .p-pick-b4 { background: var(--b4); }
+    .p-tb { font-size: 7.5pt; color: var(--muted); margin-top: 2.5mm; }
+
+    /* ── Print overrides ── */
     @media print {
-      @page { size: A3 landscape; margin: 10mm; }
-      body { background:#fff; }
-      .poster { min-height:auto; padding:0; }
+      body { background: white !important; }
+      #loading-screen, #error-screen, .screen-toolbar { display: none !important; }
+      #poster-shell { display: block !important; }
+      .poster-page { margin: 0; box-shadow: none; }
+      .poster-page-2 { margin: 0; box-shadow: none; }
     }
-    @media (max-width: 900px){
-      .brackets{grid-template-columns:1fr}
-      .players{grid-template-columns:1fr}
-      .hero{flex-direction:column;align-items:flex-start}
+
+    /* ── Screen only: nice preview with max-width ── */
+    @media screen {
+      #poster-shell { background: #d4d8e2; padding: 24px 0 40px; }
+      .poster-page, .poster-page-2 { max-width: 100%; }
     }
   </style>
 </head>
 <body>
-  <div class="poster">
-    <div class="hero">
-      <div class="hero-left">
-        <img id="logo" alt="Tournament logo" style="display:none;">
-        <div>
-          <h1 id="title">Loading…</h1>
-          <p id="subtitle"></p>
-        </div>
-      </div>
-      <div class="stamp">Official Brackets</div>
-    </div>
 
-    <div class="brackets" id="bracketsWrap"></div>
-
-    <div class="footer">
-      <div>Live data from Google Sheets</div>
-      <div id="footerLock"></div>
-    </div>
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <div>Loading poster data…</div>
   </div>
 
+  <div id="error-screen">
+    <div style="font-size:2.5rem">⚠️</div>
+    <h2 style="margin:0;font-size:1.3rem;color:var(--text)">Couldn't load configuration</h2>
+    <p style="color:var(--muted);max-width:400px" id="error-msg">Please check the CONFIG_URL.</p>
+    <button class="error-retry" onclick="location.reload()">Try Again</button>
+  </div>
+
+  <div id="poster-shell">
+    <!-- Screen toolbar (hidden on print) -->
+    <div class="screen-toolbar">
+      <div class="inner">
+        <div class="toolbar-left">
+          <strong id="toolbar-title">Golf Sweep</strong> · Printable A3 Poster
+        </div>
+        <div class="toolbar-btns">
+          <a class="btn btn-ghost" href="./index.html">← Back to Sweep</a>
+          <button class="btn btn-primary" onclick="window.print()">🖨️ Print / Save PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 1 -->
+    <div class="poster-page" id="poster-page-1">
+      <!-- Hero -->
+      <div class="poster-hero">
+        <div class="poster-eyebrow" id="poster-eyebrow">PGA Tour Sweep</div>
+        <div class="poster-logo-wrap">
+          <div class="poster-logo-circle" id="poster-logo">
+            <div class="logo-fallback">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 3c2.5 4 2.5 14 0 18M3 12c4-2.5 14-2.5 18 0"/>
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h1 class="poster-h1" id="poster-h1">Golf Sweep</h1>
+            <p class="poster-subtitle" id="poster-subtitle">Pick your golfers · Track the leaderboard</p>
+          </div>
+        </div>
+
+        <div class="poster-meta-row">
+          <div class="poster-cta" id="poster-cta">Call to enter</div>
+          <div class="poster-rule-pills">
+            <span class="rule-pill">8 picks per entry</span>
+            <span class="rule-pill">4 brackets</span>
+            <span class="rule-pill">Lowest score wins</span>
+            <span class="rule-pill" id="lock-pill">Enter before tee-off</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="poster-body">
+
+        <!-- Brackets 2×2 -->
+        <h2 class="brackets-heading">Bracket Players — Pick 2 from each bracket</h2>
+        <div class="brackets-grid">
+          <div class="bracket-panel">
+            <div class="bracket-panel-head">
+              <h3 class="bracket-panel-name">Bracket 1</h3>
+              <span class="bracket-badge badge-b1">B1</span>
+            </div>
+            <ul id="poster-bracket-1" class="bracket-players">
+              <li><span class="pnum">…</span>Loading</li>
+            </ul>
+          </div>
+          <div class="bracket-panel">
+            <div class="bracket-panel-head">
+              <h3 class="bracket-panel-name">Bracket 2</h3>
+              <span class="bracket-badge badge-b2">B2</span>
+            </div>
+            <ul id="poster-bracket-2" class="bracket-players">
+              <li><span class="pnum">…</span>Loading</li>
+            </ul>
+          </div>
+          <div class="bracket-panel">
+            <div class="bracket-panel-head">
+              <h3 class="bracket-panel-name">Bracket 3</h3>
+              <span class="bracket-badge badge-b3">B3</span>
+            </div>
+            <ul id="poster-bracket-3" class="bracket-players">
+              <li><span class="pnum">…</span>Loading</li>
+            </ul>
+          </div>
+          <div class="bracket-panel">
+            <div class="bracket-panel-head">
+              <h3 class="bracket-panel-name">Bracket 4</h3>
+              <span class="bracket-badge badge-b4">B4</span>
+            </div>
+            <ul id="poster-bracket-4" class="bracket-players">
+              <li><span class="pnum">…</span>Loading</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Info cards -->
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="info-icon">🏌️</div>
+            <h3 class="info-title">How to Pick</h3>
+            <ul class="info-list">
+              <li>Choose 2 golfers from each bracket</li>
+              <li>8 golfers total per entry</li>
+              <li>Submit before the lock time</li>
+            </ul>
+          </div>
+          <div class="info-card">
+            <div class="info-icon">📊</div>
+            <h3 class="info-title">Scoring</h3>
+            <ul class="info-list">
+              <li>Combined score of your 8 golfers</li>
+              <li>Lowest total wins the sweep</li>
+              <li>MC &amp; WD penalties apply</li>
+            </ul>
+          </div>
+          <div class="info-card">
+            <div class="info-icon">🏆</div>
+            <h3 class="info-title">Prizes &amp; Updates</h3>
+            <ul class="info-list">
+              <li>Top 3 places win prizes</li>
+              <li>Live leaderboard at the web URL</li>
+              <li>Final result at tournament end</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Entry CTA row -->
+        <div class="entry-row">
+          <div class="qr-box">
+            <div class="qr-placeholder">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 3h7v7H3V3zm2 2v3h3V5H5zm9-2h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm-4 2v2h2v-2h-2zm4-2h2v-2h-2v2z"/>
+              </svg>
+            </div>
+            <div class="qr-label" id="qr-label">Scan to enter<br>or view live</div>
+          </div>
+          <div class="entry-card-box">
+            <h3 class="entry-card-title" id="entry-how-title">How to Enter</h3>
+            <ol class="entry-card-steps">
+              <li><strong>Choose your picks</strong> — 2 golfers from each of the 4 brackets</li>
+              <li><strong>Note your tie-breaker</strong> — used if scores are tied</li>
+              <li><strong id="entry-step-call">Call the pro shop</strong> with your name and 8 picks</li>
+              <li><strong>Track live</strong> — visit the sweep website for live updates</li>
+            </ol>
+            <div class="entry-url" id="entry-url"></div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="poster-footer">
+          <div class="footer-left"><strong id="footer-competition">Golf Sweep</strong> · <span id="footer-tournament"></span></div>
+          <div id="footer-phone-text"></div>
+          <div id="footer-url-text" style="font-size:7.5pt"></div>
+        </div>
+      </div>
+    </div><!-- /poster-page-1 -->
+
+    <!-- PAGE 2: Participant entries (populated if data available) -->
+    <div class="poster-page-2" id="poster-page-2" style="display:none">
+      <h2 class="page2-title" id="page2-title">Participant Entries</h2>
+      <p class="page2-sub" id="page2-sub">Full participant picks for print / display</p>
+      <div id="participants-grid" class="participants-grid"></div>
+    </div>
+
+  </div><!-- /poster-shell -->
+
   <script>
-    const CONFIG_URL = 'https://script.google.com/macros/s/AKfycbyXuqjPHlltPSQCGJBFj4sEMy5T2NKky_awLvdHbWusucVWCL3Eh8g_5IzH40d1ze98bQ/exec?mode=config';
+    /* ══════════════════════════════════════════
+       CONFIG_URL — replace with your Apps Script URL
+    ══════════════════════════════════════════ */
+    const CONFIG_URL = 'https://script.google.com/macros/s/AKfycbyMZkkFaVR9YlTAcX67Ex-4MtaVxt5uxKvBWDQuUDYMYjGSRc88RHW2Q5BmELn-rpM/exec';
 
-    const PALETTES = {
-      'Augusta Classic': { primary:'#1f5a3a', secondary:'#163d28', accent:'#d4af37', bg:'#f7f3ea', text:'#1b1b16' },
-      'Tour Blue': { primary:'#123c73', secondary:'#0d2748', accent:'#5fa8ff', bg:'#f5f7fb', text:'#122033' },
-      'Pine & Gold': { primary:'#234b34', secondary:'#2f6b4a', accent:'#d6b25e', bg:'#f6f1e7', text:'#1e241d' },
-      'Slate & Lime': { primary:'#23313f', secondary:'#111a23', accent:'#9acd32', bg:'#f4f6f8', text:'#17202a' },
-      'Midnight Fairway': { primary:'#0f1720', secondary:'#1f2937', accent:'#d9b45b', bg:'#0b0f14', text:'#f3f5f7' }
-    };
-
-    function applyPalette(name){
-      const p = PALETTES[name] || PALETTES['Augusta Classic'];
-      document.documentElement.style.setProperty('--primary', p.primary);
-      document.documentElement.style.setProperty('--secondary', p.secondary);
-      document.documentElement.style.setProperty('--accent', p.accent);
-      document.documentElement.style.setProperty('--bg', p.bg);
-      document.documentElement.style.setProperty('--text', p.text);
-      document.documentElement.style.setProperty('--card', p.bg === '#0b0f14' ? '#111722' : '#ffffff');
-    }
-
-    function splitCSVLine(line){
-      const out=[]; let cur=''; let q=false;
+    /* ─── Utilities ─── */
+    function splitCSVLine(line) {
+      const result=[];let current='',inQuotes=false;
       for(let i=0;i<line.length;i++){
-        const ch=line[i];
-        if(ch === '"'){
-          if(q && line[i+1] === '"'){ cur += '"'; i++; }
-          else { q = !q; }
-        } else if(ch === ',' && !q){
-          out.push(cur); cur='';
-        } else { cur += ch; }
+        const ch=line[i],nx=line[i+1];
+        if(ch==='"'&&inQuotes&&nx==='"'){current+='"';i++;}
+        else if(ch==='"'){inQuotes=!inQuotes;}
+        else if(ch===','&&!inQuotes){result.push(current);current='';}
+        else{current+=ch;}
       }
-      out.push(cur);
-      return out;
+      result.push(current);return result.map(v=>v.trim());
     }
-
-    function parseCSV(text){
-      const lines = text.trim().split(/\r?\n/);
-      if(!lines.length) return [];
-      const headers = splitCSVLine(lines[0]).map(h => h.trim());
-      return lines.slice(1).filter(Boolean).map(line => {
-        const cells = splitCSVLine(line);
-        const obj = {};
-        headers.forEach((h,i) => obj[h] = (cells[i] || '').trim());
-        return obj;
+    function parseCSV(csv){
+      const clean=(csv||'').trim();if(!clean)return[];
+      const lines=clean.split(/\r?\n/);if(lines.length<2)return[];
+      const headers=splitCSVLine(lines[0]);
+      return lines.slice(1).filter(l=>l.trim()).map(line=>{
+        const values=splitCSVLine(line);const row={};
+        headers.forEach((h,i)=>row[h]=values[i]??'');return row;
       });
     }
 
-    async function fetchText(url){ const r = await fetch(url); if(!r.ok) throw new Error('fetch failed'); return r.text(); }
-    async function fetchJSON(url){ const r = await fetch(url); if(!r.ok) throw new Error('config failed'); return r.json(); }
+    /* ─── Light/dark / theme ─── */
+    function hexToRgb(hex){const h=hex.replace('#','');const n=parseInt(h.length===3?h.split('').map(c=>c+c).join(''):h,16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
+    function isLight(hex){const{r,g,b}=hexToRgb(hex);return 0.299*r+0.587*g+0.114*b>128;}
+    function lighten(hex,amt){let{r,g,b}=hexToRgb(hex);r=Math.min(255,r+amt);g=Math.min(255,g+amt);b=Math.min(255,b+amt);return'#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+    function darken(hex,amt){let{r,g,b}=hexToRgb(hex);r=Math.max(0,r-amt);g=Math.max(0,g-amt);b=Math.max(0,b-amt);return'#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');}
 
-    function renderBracket(title, rows){
-      const headers = rows.length ? Object.keys(rows[0]) : [];
-      const playerKey = headers.find(h => ['player','name'].includes(h.toLowerCase())) || headers[0] || 'Player';
-      return `
-        <section class="panel">
-          <h2>${title}</h2>
-          <div class="players">
-            ${rows.map(r => `<div class="player">${r[playerKey] || ''}</div>`).join('')}
-          </div>
-        </section>
-      `;
+    function applyTheme(palette){
+      const root=document.documentElement;
+      const{primary,secondary,accent,bg,text}=palette;
+      root.style.setProperty('--primary',primary);
+      root.style.setProperty('--secondary',secondary);
+      root.style.setProperty('--accent',accent);
+      root.style.setProperty('--bg',bg);
+      root.style.setProperty('--text',text);
+      root.style.setProperty('--hero-bg',secondary);
+      const dark=!isLight(bg);
+      root.style.setProperty('--card',dark?lighten(bg,14):'#ffffff');
+      root.style.setProperty('--card2',dark?lighten(bg,8):darken('#ffffff',8));
+      root.style.setProperty('--line',dark?'rgba(255,255,255,.12)':'rgba(0,0,0,.1)');
+      root.style.setProperty('--soft',dark?lighten(text,60):darken(text,10));
+      root.style.setProperty('--muted',dark?lighten(text,40):'#6b7a99');
+      root.style.setProperty('--b1',primary);
+      root.style.setProperty('--b2',lighten(primary,28));
+      root.style.setProperty('--b3',darken(accent,30));
+      root.style.setProperty('--b4',darken(accent,55));
     }
 
+    /* ─── Bracket CSV ─── */
+    async function fetchBracketCSV(url){
+      if(!url)return[];
+      try{
+        const text=await fetch(`${url}&t=${Date.now()}`).then(r=>r.text());
+        const rows=parseCSV(text);
+        return rows.map(r=>r.Player||r.player||r.Name||r.name||'').filter(Boolean);
+      }catch(e){return[];}
+    }
+
+    function renderPosterBracket(num,players){
+      const el=document.getElementById(`poster-bracket-${num}`);
+      if(!players||!players.length){
+        el.innerHTML=`<li><span class="pnum">–</span>No players loaded yet.</li>`;
+        return;
+      }
+      el.innerHTML=players.map((name,i)=>`
+        <li><span class="pnum">${i+1}.</span>${name}</li>
+      `).join('');
+    }
+
+    /* ─── Participants ─── */
+    function renderParticipants(participants){
+      if(!participants||!participants.length){
+        document.getElementById('poster-page-2').style.display='none';
+        return;
+      }
+      document.getElementById('poster-page-2').style.display='';
+      const labels=['Bracket 1','Bracket 2','Bracket 3','Bracket 4'];
+      const classes=['b1','b2','b3','b4'];
+      document.getElementById('participants-grid').innerHTML=participants.map(entry=>{
+        const rows=[0,1,2,3].map(bi=>{
+          const p1=entry.picks[bi*2]||'';
+          const p2=entry.picks[bi*2+1]||'';
+          if(!p1&&!p2)return'';
+          return`<div class="p-bracket-row">
+            <div class="p-bracket-label">${labels[bi]}</div>
+            <div class="p-picks">
+              ${p1?`<span class="p-pick p-pick-${classes[bi]}">${p1}</span>`:''}
+              ${p2?`<span class="p-pick p-pick-${classes[bi]}">${p2}</span>`:''}
+            </div>
+          </div>`;
+        }).join('');
+        return`<div class="participant-card">
+          <div class="p-name">${entry.name}</div>
+          <div class="p-brackets">${rows}</div>
+          ${entry.tieBreaker?`<div class="p-tb">TB: ${entry.tieBreaker}</div>`:''}
+        </div>`;
+      }).join('');
+    }
+
+    /* ─── Init ─── */
     async function init(){
-      const config = await fetchJSON(CONFIG_URL);
-      applyPalette(config.colourway);
+      const loadingEl=document.getElementById('loading-screen');
+      const errorEl=document.getElementById('error-screen');
+      const shellEl=document.getElementById('poster-shell');
 
-      document.getElementById('title').textContent = config.tournamentName || 'Tournament';
-      document.getElementById('subtitle').textContent = config.competitionName || '';
-      if(config.logoUrl){
-        const logo = document.getElementById('logo');
-        logo.src = config.logoUrl;
-        logo.style.display = 'block';
+      try{
+        if(!CONFIG_URL||CONFIG_URL==='CONFIG_URL_PLACEHOLDER'){
+          throw new Error('CONFIG_URL has not been set.');
+        }
+
+        const config=await fetch(`${CONFIG_URL}?mode=config&t=${Date.now()}`)
+          .then(r=>{if(!r.ok)throw new Error(`Config failed: ${r.status}`);return r.json();});
+
+        if(config.palette)applyTheme(config.palette);
+
+        /* Populate content */
+        const tName = config.tournamentName || 'Golf Sweep';
+        const cName = config.competitionName || 'Golf Sweep';
+        const phone = config.proShopPhone || '';
+        const url   = config.websiteUrl || '';
+
+        document.title = `Poster — ${cName}`;
+        document.getElementById('toolbar-title').textContent = cName;
+        document.getElementById('poster-eyebrow').textContent = config.tourEvent || 'PGA Tour';
+        document.getElementById('poster-h1').textContent = cName;
+        document.getElementById('poster-subtitle').textContent = tName;
+        document.getElementById('poster-cta').textContent = phone ? `📞 Call ${phone} to enter` : 'Enter the Sweep';
+        document.getElementById('footer-competition').textContent = cName;
+        document.getElementById('footer-tournament').textContent = tName;
+        document.getElementById('page2-title').textContent = `${cName} Entries`;
+        document.getElementById('page2-sub').textContent = `${tName} · Full participant picks`;
+        document.getElementById('entry-how-title').textContent = `How to Enter the ${cName}`;
+
+        if(phone){
+          document.getElementById('entry-step-call').textContent = `Call ${phone}`;
+          document.getElementById('footer-phone-text').textContent = `📞 ${phone}`;
+        }
+        if(url){
+          document.getElementById('entry-url').textContent = `Live updates: ${url}`;
+          document.getElementById('footer-url-text').textContent = url;
+          document.getElementById('qr-label').textContent = 'Scan to view live · ' + url.replace(/^https?:\/\//,'');
+        }
+        if(config.lockDateTime){
+          const d=new Date(config.lockDateTime);
+          const locked=d.toLocaleString('en-IE',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+          document.getElementById('lock-pill').textContent = `Locks: ${locked}`;
+        }
+
+        if(config.logoUrl){
+          const img=document.createElement('img');
+          img.src=config.logoUrl;img.alt=tName;img.onerror=()=>{};
+          const logoDiv=document.getElementById('poster-logo');
+          logoDiv.innerHTML='';logoDiv.appendChild(img);
+        }
+
+        /* Fetch bracket data */
+        const [b1,b2,b3,b4]=await Promise.all([
+          fetchBracketCSV(config.bracket1Csv),
+          fetchBracketCSV(config.bracket2Csv),
+          fetchBracketCSV(config.bracket3Csv),
+          fetchBracketCSV(config.bracket4Csv)
+        ]);
+        renderPosterBracket(1,b1);
+        renderPosterBracket(2,b2);
+        renderPosterBracket(3,b3);
+        renderPosterBracket(4,b4);
+
+        /* Fetch participants */
+        if(config.participantsCsv){
+          try{
+            const text=await fetch(`${config.participantsCsv}&t=${Date.now()}`).then(r=>r.text());
+            const rows=parseCSV(text);
+            const participants=rows.map(r=>({
+              name:r.Name||'',
+              picks:[r.B1Pick1||'',r.B1Pick2||'',r.B2Pick1||'',r.B2Pick2||'',r.B3Pick1||'',r.B3Pick2||'',r.B4Pick1||'',r.B4Pick2||''],
+              tieBreaker:r.TieBreaker||''
+            })).filter(r=>r.name);
+            renderParticipants(participants);
+          }catch(e){console.warn('Participants fetch error:',e);}
+        }
+
+        loadingEl.classList.add('hidden');
+        setTimeout(()=>loadingEl.style.display='none',450);
+        shellEl.style.display='';
+
+      }catch(err){
+        console.error(err);
+        loadingEl.style.display='none';
+        document.getElementById('error-msg').textContent=err.message;
+        errorEl.classList.add('show');
       }
-      if(config.lockDateTime){
-        document.getElementById('footerLock').textContent = 'Entry deadline: ' + config.lockDateTime;
-      }
-
-      const [b1, b2, b3, b4] = await Promise.all([
-        fetchText(config.bracket1Csv),
-        fetchText(config.bracket2Csv),
-        fetchText(config.bracket3Csv),
-        fetchText(config.bracket4Csv)
-      ]);
-
-      document.getElementById('bracketsWrap').innerHTML =
-        renderBracket('Bracket 1', parseCSV(b1)) +
-        renderBracket('Bracket 2', parseCSV(b2)) +
-        renderBracket('Bracket 3', parseCSV(b3)) +
-        renderBracket('Bracket 4', parseCSV(b4));
     }
 
-    init().catch(err => {
-      console.error(err);
-      document.getElementById('bracketsWrap').innerHTML = '<p>Could not load bracket feeds.</p>';
-    });
+    document.addEventListener('DOMContentLoaded',init);
   </script>
 </body>
 </html>
