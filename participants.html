@@ -23,10 +23,6 @@
       --hero-bg:   #0d2748;
       --radius:    18px;
       --max:       1180px;
-      --b1: #123c73;
-      --b2: #3662a1;
-      --b3: #2f7db8;
-      --b4: #0a5a87;
     }
     * { box-sizing: border-box; }
     body {
@@ -126,46 +122,25 @@
     /* Grid */
     .entries-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 16px; padding-bottom: 40px;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px; padding-bottom: 40px;
     }
     .entry-card {
       background: var(--card); border: 1px solid var(--line);
-      border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+      border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 12px;
       transition: box-shadow 0.2s, transform 0.15s;
     }
     .entry-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.13); transform: translateY(-2px); }
-    .entry-name {
-      font-size: 1.02rem; font-weight: 800; color: var(--primary);
-      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
-    }
     .entry-num {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 26px; height: 26px; border-radius: 50%;
+      width: 30px; height: 30px; border-radius: 50%;
       background: var(--card2); color: var(--muted);
-      font-size: .74rem; font-weight: 700; flex-shrink: 0;
+      font-size: .78rem; font-weight: 700; flex-shrink: 0;
     }
-    .bracket-group { display: grid; gap: 7px; }
-    .bracket-row {
-      background: var(--card2); border-radius: 10px; padding: 8px 11px;
-    }
-    .bracket-label {
-      font-size: .69rem; text-transform: uppercase; letter-spacing: .08em;
-      color: var(--muted); margin-bottom: 6px; font-weight: 700;
-    }
-    .bracket-picks { display: flex; flex-wrap: wrap; gap: 5px; }
-    .pick-tag {
-      display: inline-flex; align-items: center;
-      padding: 4px 9px; border-radius: 999px;
-      font-size: .82rem; font-weight: 700; color: #fff;
-    }
-    .pick-b1 { background: var(--b1); }
-    .pick-b2 { background: var(--b2); }
-    .pick-b3 { background: var(--b3); }
-    .pick-b4 { background: var(--b4); }
-    .entry-tb {
-      margin-top: 10px; font-size: .8rem; color: var(--muted);
-      border-top: 1px solid var(--line); padding-top: 8px;
+    .entry-name {
+      font-size: .98rem; font-weight: 700; color: var(--primary);
+      line-height: 1.3;
     }
 
     /* Empty / loading */
@@ -212,7 +187,7 @@
           </div>
           <div>
             <h1 id="page-title">All Entries</h1>
-            <p class="subtitle" id="page-subtitle">Participant picks</p>
+            <p class="subtitle" id="page-subtitle">Who's entered</p>
           </div>
         </div>
         <div class="hero-links">
@@ -236,7 +211,7 @@
               </svg>
             </span>
             <input id="search-input" class="search-input" type="text"
-              placeholder="Search participant or golfer…" autocomplete="off">
+              placeholder="Search participants…" autocomplete="off">
           </div>
         </div>
 
@@ -256,36 +231,8 @@
     ══════════════════════════════════════════ */
     const CONFIG_URL = 'https://script.google.com/macros/s/AKfycbyMZkkFaVR9YlTAcX67Ex-4MtaVxt5uxKvBWDQuUDYMYjGSRc88RHW2Q5BmELn-rpM/exec';
 
-    let allEntries = [];
+    let allNames = [];
     let searchTerm = '';
-
-    /* ─── Utilities ─── */
-    function splitCSVLine(line) {
-      const result = [];
-      let current = '', inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i], nx = line[i+1];
-        if (ch==='"' && inQuotes && nx==='"') { current+='"'; i++; }
-        else if (ch==='"') { inQuotes=!inQuotes; }
-        else if (ch===',' && !inQuotes) { result.push(current); current=''; }
-        else { current+=ch; }
-      }
-      result.push(current);
-      return result.map(v=>v.trim());
-    }
-    function parseCSV(csv) {
-      const clean=(csv||'').trim();
-      if(!clean) return [];
-      const lines=clean.split(/\r?\n/);
-      if(lines.length<2) return [];
-      const headers=splitCSVLine(lines[0]);
-      return lines.slice(1).filter(l=>l.trim()).map(line=>{
-        const values=splitCSVLine(line);
-        const row={};
-        headers.forEach((h,i)=>row[h]=values[i]??'');
-        return row;
-      });
-    }
 
     /* ─── Light/dark / theme ─── */
     function hexToRgb(hex){
@@ -313,56 +260,32 @@
       root.style.setProperty('--soft',dark?lighten(text,60):darken(text,10));
       root.style.setProperty('--muted',dark?lighten(text,40):'#6b7a99');
       root.style.setProperty('--shadow',dark?'0 14px 36px rgba(0,0,0,.3)':'0 14px 36px rgba(0,0,0,.09)');
-      root.style.setProperty('--b1',primary);
-      root.style.setProperty('--b2',lighten(primary,28));
-      root.style.setProperty('--b3',darken(accent,30));
-      root.style.setProperty('--b4',darken(accent,55));
     }
 
     /* ─── Render entries ─── */
     function render() {
-      const grid   = document.getElementById('entries-grid');
+      const grid    = document.getElementById('entries-grid');
       const countEl = document.getElementById('entries-count');
-      const term   = searchTerm.toLowerCase().trim();
+      const term    = searchTerm.toLowerCase().trim();
 
-      const filtered = allEntries.filter(e => {
+      const filtered = allNames.filter(name => {
         if (!term) return true;
-        return e.name.toLowerCase().includes(term) || e.picks.some(p => p.toLowerCase().includes(term));
+        return name.toLowerCase().includes(term);
       });
 
-      countEl.textContent = filtered.length === allEntries.length
-        ? `${allEntries.length} participant${allEntries.length !== 1 ? 's' : ''}`
-        : `${filtered.length} of ${allEntries.length} participants`;
+      countEl.textContent = filtered.length === allNames.length
+        ? `${allNames.length} participant${allNames.length !== 1 ? 's' : ''}`
+        : `${filtered.length} of ${allNames.length} participants`;
 
       if (!filtered.length) {
         grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div>No entries match "${searchTerm}"</div>`;
         return;
       }
 
-      const labels  = ['Bracket 1','Bracket 2','Bracket 3','Bracket 4'];
-      const classes = ['b1','b2','b3','b4'];
-
-      grid.innerHTML = filtered.map((entry, idx) => {
-        const rows = [0,1,2,3].map(bi => {
-          const p1 = entry.picks[bi*2]   || '';
-          const p2 = entry.picks[bi*2+1] || '';
-          if (!p1 && !p2) return '';
-          return `<div class="bracket-row">
-            <div class="bracket-label">${labels[bi]}</div>
-            <div class="bracket-picks">
-              ${p1 ? `<span class="pick-tag pick-${classes[bi]}">${p1}</span>` : ''}
-              ${p2 ? `<span class="pick-tag pick-${classes[bi]}">${p2}</span>` : ''}
-            </div>
-          </div>`;
-        }).join('');
-
+      grid.innerHTML = filtered.map((name, idx) => {
         return `<article class="entry-card">
-          <div class="entry-name">
-            <span class="entry-num">${idx+1}</span>
-            ${entry.name}
-          </div>
-          <div class="bracket-group">${rows}</div>
-          ${entry.tieBreaker ? `<div class="entry-tb">Tie-breaker: ${entry.tieBreaker}</div>` : ''}
+          <span class="entry-num">${idx + 1}</span>
+          <span class="entry-name">${name}</span>
         </article>`;
       }).join('');
     }
@@ -374,8 +297,8 @@
       const shellEl   = document.getElementById('shell');
 
       try {
-        if (!CONFIG_URL || CONFIG_URL === 'https://script.google.com/macros/s/AKfycbyMZkkFaVR9YlTAcX67Ex-4MtaVxt5uxKvBWDQuUDYMYjGSRc88RHW2Q5BmELn-rpM/exec') {
-          throw new Error('CONFIG_URL has not been set.');
+        if (!CONFIG_URL || CONFIG_URL === 'CONFIG_URL_PLACEHOLDER') {
+          throw new Error('CONFIG_URL has not been set. Replace CONFIG_URL_PLACEHOLDER in this file with your Apps Script Web App URL.');
         }
 
         const config = await fetch(`${CONFIG_URL}?mode=config&t=${Date.now()}`)
@@ -386,7 +309,7 @@
         /* Header */
         document.title = `All Entries — ${config.competitionName || config.tournamentName || 'Golf Sweep'}`;
         document.getElementById('page-title').textContent = 'All Entries';
-        document.getElementById('page-subtitle').textContent = `${config.tournamentName || ''} · Participant picks`;
+        document.getElementById('page-subtitle').textContent = `${config.tournamentName || ''} · Who's entered`;
         document.getElementById('entries-heading').textContent = `${config.competitionName || 'Sweep'} Entries`;
 
         if (config.logoUrl) {
@@ -397,18 +320,11 @@
           logoDiv.innerHTML = ''; logoDiv.appendChild(img);
         }
 
-        /* Fetch participants CSV */
-        if (!config.participantsCsv) throw new Error('participantsCsv not found in config.');
+        /* Fetch participants list (names only) */
+        const data = await fetch(`${CONFIG_URL}?mode=participants&t=${Date.now()}`)
+          .then(r => { if (!r.ok) throw new Error(`Participants fetch failed: ${r.status}`); return r.json(); });
 
-        const text = await fetch(`${config.participantsCsv}&t=${Date.now()}`).then(r => r.text());
-        const rows = parseCSV(text);
-
-        allEntries = rows.map(r => ({
-          name:       r.Name || '',
-          picks:      [r.B1Pick1||'', r.B1Pick2||'', r.B2Pick1||'', r.B2Pick2||'',
-                       r.B3Pick1||'', r.B3Pick2||'', r.B4Pick1||'', r.B4Pick2||''],
-          tieBreaker: r.TieBreaker || ''
-        })).filter(r => r.name);
+        allNames = (data.participants || []).filter(Boolean);
 
         render();
 
