@@ -238,7 +238,7 @@
         </div>
         <div class="hero-links">
           <a class="hero-link" href="./index.html">← Back to Sweep</a>
-          <a class="hero-link cta-enter" id="enter-link" href="#" target="_blank" rel="noopener">Enter Now ↗</a>
+          <!-- Entry link removed for security -->
         </div>
       </div>
     </header>
@@ -341,15 +341,12 @@
           </div>
         </div>
 
-        <!-- Enter CTA banner -->
+        <!-- Enter CTA banner (removed — entry via pro shop only) -->
         <div class="enter-banner">
           <div class="enter-banner-text">
-            <h3 id="banner-title">Ready to enter?</h3>
-            <p id="banner-phone">Contact the pro shop to submit your picks.</p>
+            <h3 id="banner-title">Want to enter?</h3>
+            <p id="banner-phone">Contact the pro shop to register and get your entry link.</p>
           </div>
-          <a id="enter-btn" class="enter-btn" href="#" target="_blank" rel="noopener">
-            Enter the Sweep ↗
-          </a>
         </div>
 
         <div class="footer-note" id="footer-note">
@@ -466,17 +463,11 @@
           const logoDiv = document.getElementById('brand-logo');
           logoDiv.innerHTML = ''; logoDiv.appendChild(img);
         }
-        if (config.entryWebAppUrl) {
-          document.getElementById('enter-link').href = config.entryWebAppUrl;
-          document.getElementById('enter-btn').href  = config.entryWebAppUrl;
-        } else {
-          document.getElementById('enter-link').style.display = 'none';
-          document.getElementById('enter-btn').style.display  = 'none';
-        }
+        /* Entry links removed for security — entry via pro shop only */
         if (config.proShopPhone) {
-          document.getElementById('banner-phone').textContent = 'Call ' + config.proShopPhone + ' to submit your picks, or use the online form above.';
+          document.getElementById('banner-phone').textContent = 'Call ' + config.proShopPhone + ' to register and get your entry link.';
         }
-        document.getElementById('banner-title').textContent = 'Ready to enter the ' + (config.competitionName || 'Sweep') + '?';
+        document.getElementById('banner-title').textContent = 'Want to enter the ' + (config.competitionName || 'Sweep') + '?';
         document.getElementById('footer-note').textContent = (config.competitionName || 'Golf Sweep') + ' \u00b7 Bracket lists update automatically';
 
         /* Render brackets from JSON */
