@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Private League — Golf Sweep</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── CSS Variables — set dynamically from config palette ── */
+    :root {
+      --primary:   #123c73;
+      --secondary: #0d2748;
+      --accent:    #5fa8ff;
+      --bg:        #f5f7fb;
+      --text:      #122033;
+
+      /* Derived — recalculated by applyTheme() */
+      --card:      #ffffff;
+      --card2:     #eef1f7;
+      --line:      rgba(18,60,115,.15);
+      --gold:      var(--accent);
+      --gold2:     var(--accent);
+      --muted:     #6b7a99;
+      --soft:      #4a5670;
+      --shadow:    0 18px 40px rgba(0,0,0,.10);
+      --hero-bg:   var(--secondary);
+      --hero-text: #ffffff;
+      --radius:    18px;
+      --max:       1180px;
+
+      /* Bracket pill colours — overridden by applyTheme() */
+      --b1: #1e6c42;
+      --b2: #2d7e4b;
+      --b3: #8b6a2c;
+      --b4: #6d4d22;
+
+      /* Gold/silver/bronze row highlights */
+      --row-gold:   rgba(255, 200, 50,  0.13);
+      --row-silver: rgba(192, 200, 220, 0.18);
+      --row-bronze: rgba(180, 120, 60,  0.13);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* ── Loading state ── */
+    #loading-screen {
+      position: fixed; inset: 0; z-index: 100;
+      background: var(--secondary);
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      color: #fff;
+      font-size: 1.1rem;
+      transition: opacity 0.4s;
+    }
+    #loading-screen.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error state ── */
+    #error-screen {
+      display: none; position: fixed; inset: 0; z-index: 99;
+      background: var(--bg);
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px; padding: 32px; text-align: center;
+    }
+    #error-screen.show { display: flex; }
+    .error-icon { font-size: 2.5rem; }
+    .error-title { font-size: 1.4rem; font-weight: 800; color: var(--text); margin: 0; }
+    .error-msg { color: var(--muted); max-width: 420px; line-height: 1.55; }
+    .error-retry {
+      margin-top: 8px; padding: 12px 24px; border-radius: 999px;
+      background: var(--primary); color: #fff; border: none; cursor: pointer;
+      font-weight: 700; font-size: 1rem;
+    }
+    .error-retry:hover { opacity: 0.88; }
+
+    .container { width: min(100% - 32px, var(--max)); margin: 0 auto; }
+
+    /* ── Hero / Header ── */
+    .hero {
+      border-bottom: 1px solid var(--line);
+      background: var(--hero-bg);
+    }
+    .hero-inner {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 24px; padding: 28px 0 22px;
+    }
+    .brand { display: flex; align-items: center; gap: 16px; }
+    .brand-logo {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.35);
+      overflow: hidden; display: grid; place-items: center;
+      background: rgba(255,255,255,.12);
+      flex-shrink: 0;
+    }
+    .brand-logo svg { color: rgba(255,255,255,.9); width: 26px; height: 26px; }
+    .brand-text h1 {
+      margin: 0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.7rem, 3.5vw, 3rem);
+      line-height: 1.05;
+      color: #fff;
+    }
+    .brand-text .subtitle {
+      margin: 5px 0 0; color: rgba(255,255,255,.7); font-size: 1rem;
+    }
+    .brand-text .group-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      margin-top: 8px;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: rgba(255,255,255,.9);
+      padding: 5px 12px; border-radius: 999px;
+      font-size: .82rem; font-weight: 700; letter-spacing: .04em;
+    }
+
+    .hero-meta {
+      text-align: right; display: flex; flex-direction: column;
+      align-items: flex-end; gap: 8px; color: rgba(255,255,255,.75);
+    }
+    .live-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(30,200,80,.25);
+      border: 1px solid rgba(30,200,80,.5);
+      color: #6fffa0; padding: 8px 14px; border-radius: 999px;
+      font-weight: 800; letter-spacing: .04em;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #6fffa0; box-shadow: 0 0 10px #6fffa0;
+      animation: pulse 1.4s ease infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.45 } }
+    .meta-updated { font-size: .88rem; opacity: .75; }
+
+    /* ── Main content ── */
+    .main { padding: 30px 0 100px; }
+
+    /* ── Panel / card ── */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 26px;
+    }
+    .panel-head {
+      padding: 18px 20px; border-bottom: 1px solid var(--line);
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    }
+    .panel-title {
+      margin: 0; font-size: 1.08rem; font-weight: 800; color: var(--primary);
+    }
+    .panel-sub { color: var(--muted); font-size: .9rem; margin-top: 2px; }
+
+    /* ── Section heading ── */
+    .section-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(1.25rem, 2.5vw, 1.65rem);
+      font-weight: 700; color: var(--primary);
+      margin: 0 0 16px;
+    }
+
+    /* ── Group leaderboard table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+    th {
+      color: var(--muted); font-size: .76rem;
+      text-transform: uppercase; letter-spacing: .08em;
+      background: var(--card2);
+    }
+    tbody tr:hover { background: var(--card2); }
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* Gold/silver/bronze row highlights */
+    tbody tr.row-gold   { background: var(--row-gold) !important; }
+    tbody tr.row-silver { background: var(--row-silver) !important; }
+    tbody tr.row-bronze { background: var(--row-bronze) !important; }
+    tbody tr.row-gold:hover   { background: var(--row-gold) !important; }
+    tbody tr.row-silver:hover { background: var(--row-silver) !important; }
+    tbody tr.row-bronze:hover { background: var(--row-bronze) !important; }
+
+    .rank-num { font-weight: 800; color: var(--primary); }
+    .rank-medal { font-size: 1.2rem; }
+    .overall-rank {
+      display: inline-block;
+      font-size: .82rem; font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .overall-rank .of-total { font-weight: 400; }
+
+    .move-up   { color: #22c55e; font-weight: 700; }
+    .move-down { color: #ef4444; font-weight: 700; }
+    .move-flat { color: var(--muted); font-weight: 700; }
+
+    .score-good  { color: #16a34a; font-weight: 700; }
+    .score-even  { color: var(--muted); font-weight: 700; }
+    .score-bad   { color: #dc2626; font-weight: 700; }
+
+    .player-name-cell { font-weight: 600; }
+
+    .tiebreaker-cell { color: var(--muted); font-size: .88rem; }
+
+    /* ── Inline picks ── */
+    .picks-cell { min-width: 260px; }
+    .picks-inline { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pick-tag {
+      display: inline-flex; align-items: center;
+      padding: 3px 8px; border-radius: 999px;
+      font-size: .76rem; font-weight: 700; color: #fff;
+      white-space: nowrap;
+    }
+    .pick-b1 { background: var(--b1); }
+    .pick-b2 { background: var(--b2); }
+    .pick-b3 { background: var(--b3); }
+    .pick-b4 { background: var(--b4); }
+    .pick-label {
+      font-size: .64rem; opacity: .75; margin-right: 3px; text-transform: uppercase; letter-spacing: .05em;
+    }
+
+    /* ── Overall standings card ── */
+    .standings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 20px;
+    }
+    .standing-card {
+      background: var(--card2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px 16px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .standing-medal { font-size: 1.6rem; line-height: 1; }
+    .standing-name { font-weight: 800; color: var(--text); font-size: 1rem; }
+    .standing-rank {
+      font-size: .9rem; font-weight: 700; color: var(--accent);
+    }
+    .standing-rank .rank-suffix { color: var(--muted); font-weight: 400; }
+    .standing-score { font-size: .88rem; color: var(--muted); }
+
+    .standings-empty {
+      padding: 32px 20px; text-align: center; color: var(--muted); font-size: .95rem;
+    }
+
+    /* ── Summary stat pills ── */
+    .stat-row {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      padding: 16px 20px; border-bottom: 1px solid var(--line);
+    }
+    .stat-pill {
+      background: var(--card2); border: 1px solid var(--line);
+      border-radius: 999px; padding: 6px 14px;
+      font-size: .85rem; font-weight: 600; color: var(--soft);
+    }
+    .stat-pill strong { color: var(--primary); }
+
+    /* ── Footer bar ── */
+    .footer-bar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+      background: var(--hero-bg); border-top: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(8px);
+    }
+    .footer-inner {
+      width: min(100% - 32px, var(--max)); margin: 0 auto;
+      padding: 11px 0; text-align: center;
+      color: rgba(255,255,255,.75); font-size: .9rem;
+    }
+    .footer-inner strong { color: #fff; }
+    .countdown-badge {
+      display: inline-block; background: rgba(255,255,255,.15);
+      border-radius: 999px; padding: 2px 10px; font-size: .82rem;
+      margin-left: 8px; font-weight: 700;
+    }
+
+    /* ── Empty / loading states ── */
+    .empty-state {
+      padding: 40px 20px; text-align: center; color: var(--muted); font-size: .96rem;
+    }
+    .empty-icon { font-size: 2rem; margin-bottom: 8px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 800px) {
+      .hero-inner { flex-direction: column; align-items: flex-start; }
+      .hero-meta { align-items: flex-start; text-align: left; }
+      table { min-width: 500px; }
+    }
+    @media (max-width: 480px) {
+      .brand-text h1 { font-size: 1.5rem; }
+      .live-pill { padding: 6px 10px; font-size: .85rem; }
+      .footer-inner { font-size: .8rem; }
+      .picks-cell { min-width: 200px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading screen -->
+  <div id="loading-screen">
+    <div class="spinner"></div>
+    <div>Loading group leaderboard…</div>
+  </div>
+
+  <!-- Error screen -->
+  <div id="error-screen">
+    <div class="error-icon">⛳</div>
+    <h2 class="error-title" id="error-title">Group not found</h2>
+    <p class="error-msg" id="error-msg">No group code was provided or the code is invalid. Please check your link and try again.</p>
+    <button class="error-retry" onclick="location.reload()">Try Again</button>
+  </div>
+
+  <!-- Shell — hidden until data loads -->
+  <div id="shell" style="display:none">
+
+    <header class="hero">
+      <div class="container hero-inner">
+        <div class="brand">
+          <div class="brand-logo">
+            <!-- Golf flag SVG logo -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="Golf Sweep logo">
+              <line x1="6" y1="3" x2="6" y2="21"/>
+              <path d="M6 3 L18 8 L6 13"/>
+              <circle cx="9" cy="20" r="1.5" fill="currentColor" stroke="none"/>
+              <circle cx="14" cy="21.5" r="1.5" fill="currentColor" stroke="none"/>
+              <ellipse cx="11.5" cy="21" rx="5.5" ry="1" stroke="currentColor" stroke-width="1" fill="none"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1 id="group-name">Private League</h1>
+            <p class="subtitle" id="tournament-name">Loading…</p>
+            <span class="group-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span id="group-code-label">Private League</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="hero-meta">
+          <div class="live-pill"><span class="live-dot"></span>LIVE</div>
+          <div class="meta-updated" id="updated-time">Updated --:--</div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="container">
+
+        <!-- Group leaderboard panel -->
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Group Leaderboard</h2>
+              <div class="panel-sub" id="member-count">Loading members…</div>
+            </div>
+          </div>
+          <div class="stat-row" id="stat-row" style="display:none">
+            <span class="stat-pill">Group: <strong id="stat-group-name">—</strong></span>
+            <span class="stat-pill">Members: <strong id="stat-count">—</strong></span>
+            <span class="stat-pill">Total entries: <strong id="stat-total">—</strong></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Group Rank</th>
+                  <th>Overall</th>
+                  <th>Name</th>
+                  <th>Total</th>
+                  <th>Move</th>
+                  <th class="picks-cell">Picks</th>
+                  <th>Tiebreaker</th>
+                </tr>
+              </thead>
+              <tbody id="group-tbody">
+                <tr><td colspan="7"><div class="empty-state"><div class="empty-icon">⏳</div>Loading…</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Overall standings panel -->
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">In the Overall League</h2>
+              <div class="panel-sub">Where your group's top 3 sit in the full competition</div>
+            </div>
+          </div>
+          <div id="overall-standings">
+            <div class="standings-empty"><div class="empty-icon">⏳</div> Loading overall standings…</div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <div class="footer-bar">
+      <div class="footer-inner">
+        <strong id="footer-group">Golf Sweep</strong> · Auto-refreshes every 60 seconds ·
+        <span class="countdown-badge"><span id="countdown">60</span>s</span>
+      </div>
+    </div>
+
+  </div><!-- /shell -->
+
+  <script>
+    /* ═══════════════════════════════════════════════════
+       CONFIGURATION — replace CONFIG_URL_PLACEHOLDER with
+       your deployed Google Apps Script URL before going live.
+    ═══════════════════════════════════════════════════ */
+    var CONFIG_URL = 'CONFIG_URL_PLACEHOLDER';
+
+    /* ─── Parse group code from URL ─── */
+    function getGroupCode() {
+      var search = window.location.search;
+      if (!search) return null;
+      var params = search.substring(1).split('&');
+      for (var i = 0; i < params.length; i++) {
+        var pair = params[i].split('=');
+        if (pair[0] === 'code' && pair[1]) {
+          return decodeURIComponent(pair[1]);
+        }
+      }
+      return null;
+    }
+
+    var groupCode = getGroupCode();
+    var countdownVal = 60;
+    var countdownTimer = null;
+    var refreshTimer = null;
+    var entryCount = 0;
+
+    /* ─── Utility: format score ─── */
+    function formatScore(val) {
+      var n = Number(val);
+      if (isNaN(n)) return (val || '—');
+      if (n < 0) return '' + n;
+      if (n === 0) return 'E';
+      return '+' + n;
+    }
+
+    function scoreClass(score) {
+      var n = Number(score);
+      if (isNaN(n)) return '';
+      if (n < 0) return 'score-good';
+      if (n > 0) return 'score-bad';
+      return 'score-even';
+    }
+
+    function moveClass(move) {
+      if (!move || move === '–' || move === '-' || move === 'E') return 'move-flat';
+      var m = String(move);
+      if (m.charAt(0) === '▲') return 'move-up';
+      if (m.charAt(0) === '▼') return 'move-down';
+      return 'move-flat';
+    }
+
+    function ordinalSuffix(n) {
+      var s = n % 100;
+      if (s >= 11 && s <= 13) return n + 'th';
+      var r = n % 10;
+      if (r === 1) return n + 'st';
+      if (r === 2) return n + 'nd';
+      if (r === 3) return n + 'rd';
+      return n + 'th';
+    }
+
+    /* ─── Hex/colour helpers ─── */
+    function hexToRgb(hex) {
+      var h = hex.replace('#', '');
+      var n = parseInt(h.length === 3
+        ? h.split('').map(function(c) { return c + c; }).join('')
+        : h, 16);
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+
+    function luminance(hex) {
+      var rgb = hexToRgb(hex);
+      return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
+    }
+
+    function isLight(hex) { return luminance(hex) > 128; }
+
+    function lighten(hex, amt) {
+      var rgb = hexToRgb(hex);
+      var r = Math.min(255, rgb.r + amt);
+      var g = Math.min(255, rgb.g + amt);
+      var b = Math.min(255, rgb.b + amt);
+      return '#' + [r, g, b].map(function(x) { return x.toString(16).padStart(2, '0'); }).join('');
+    }
+
+    function darken(hex, amt) {
+      var rgb = hexToRgb(hex);
+      var r = Math.max(0, rgb.r - amt);
+      var g = Math.max(0, rgb.g - amt);
+      var b = Math.max(0, rgb.b - amt);
+      return '#' + [r, g, b].map(function(x) { return x.toString(16).padStart(2, '0'); }).join('');
+    }
+
+    /* ─── Theme application ─── */
+    function applyTheme(palette) {
+      var root = document.documentElement;
+      var primary   = palette.primary   || '#123c73';
+      var secondary = palette.secondary || '#0d2748';
+      var accent    = palette.accent    || '#5fa8ff';
+      var bg        = palette.bg        || '#f5f7fb';
+      var text      = palette.text      || '#122033';
+
+      root.style.setProperty('--primary',   primary);
+      root.style.setProperty('--secondary', secondary);
+      root.style.setProperty('--accent',    accent);
+      root.style.setProperty('--bg',        bg);
+      root.style.setProperty('--text',      text);
+
+      var dark = !isLight(bg);
+      if (dark) {
+        root.style.setProperty('--card',   lighten(bg, 14));
+        root.style.setProperty('--card2',  lighten(bg, 8));
+        root.style.setProperty('--line',   'rgba(255,255,255,.1)');
+        root.style.setProperty('--soft',   lighten(text, 60));
+        root.style.setProperty('--muted',  lighten(text, 40));
+        root.style.setProperty('--shadow', '0 18px 40px rgba(0,0,0,.32)');
+      } else {
+        root.style.setProperty('--card',   '#ffffff');
+        root.style.setProperty('--card2',  darken('#ffffff', 8));
+        root.style.setProperty('--line',   'rgba(0,0,0,.09)');
+        root.style.setProperty('--soft',   darken(text, 10));
+        root.style.setProperty('--muted',  '#6b7a99');
+        root.style.setProperty('--shadow', '0 18px 40px rgba(0,0,0,.09)');
+      }
+
+      root.style.setProperty('--hero-bg',   secondary);
+      root.style.setProperty('--hero-text', '#ffffff');
+      root.style.setProperty('--gold',      accent);
+      root.style.setProperty('--gold2',     isLight(accent) ? darken(accent, 20) : lighten(accent, 20));
+
+      /* Bracket pill colours */
+      root.style.setProperty('--b1', primary);
+      root.style.setProperty('--b2', lighten(primary, 28));
+      root.style.setProperty('--b3', darken(accent, 30));
+      root.style.setProperty('--b4', darken(accent, 55));
+    }
+
+    /* ─── Show error screen ─── */
+    function showError(title, msg) {
+      document.getElementById('loading-screen').classList.add('hidden');
+      document.getElementById('shell').style.display = 'none';
+      var es = document.getElementById('error-screen');
+      es.classList.add('show');
+      document.getElementById('error-title').textContent = title || 'Something went wrong';
+      document.getElementById('error-msg').textContent = msg || 'Please check your link and try again.';
+    }
+
+    /* ─── Render group table ─── */
+    function renderGroupTable(members, total) {
+      var tbody = document.getElementById('group-tbody');
+      if (!members || members.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">📋</div>No members found in this group.</div></td></tr>';
+        return;
+      }
+
+      /* Bracket label map: picks[0..1]=B1, [2..3]=B2, [4..5]=B3, [6..7]=B4 */
+      var bracketMeta = [
+        { label: 'B1', cls: 'pick-b1' },
+        { label: 'B1', cls: 'pick-b1' },
+        { label: 'B2', cls: 'pick-b2' },
+        { label: 'B2', cls: 'pick-b2' },
+        { label: 'B3', cls: 'pick-b3' },
+        { label: 'B3', cls: 'pick-b3' },
+        { label: 'B4', cls: 'pick-b4' },
+        { label: 'B4', cls: 'pick-b4' }
+      ];
+
+      var rows = '';
+      for (var i = 0; i < members.length; i++) {
+        var m = members[i];
+        var gr = m.groupRank || (i + 1);
+        var or = m.overallRank;
+        var name = m.name || '—';
+        var score = m.totalScore;
+        var move = m.move || '–';
+        var picks = m.picks || [];
+        var tb = m.tieBreaker || '—';
+
+        /* Group rank cell */
+        var rankCell = '';
+        var rowClass = '';
+        if (gr === 1) {
+          rankCell = '<span class="rank-medal">🥇</span> <span class="rank-num">1</span>';
+          rowClass = 'row-gold';
+        } else if (gr === 2) {
+          rankCell = '<span class="rank-medal">🥈</span> <span class="rank-num">2</span>';
+          rowClass = 'row-silver';
+        } else if (gr === 3) {
+          rankCell = '<span class="rank-medal">🥉</span> <span class="rank-num">3</span>';
+          rowClass = 'row-bronze';
+        } else {
+          rankCell = '<span class="rank-num">' + gr + '</span>';
+        }
+
+        /* Overall rank cell */
+        var overallCell = '';
+        if (or) {
+          var suffix = total ? (' <span class="of-total">of ' + total + '</span>') : '';
+          overallCell = '<span class="overall-rank">' + ordinalSuffix(or) + suffix + '</span>';
+        } else {
+          overallCell = '<span class="overall-rank" style="color:var(--muted)">—</span>';
+        }
+
+        /* Picks pills */
+        var picksHtml = '<div class="picks-inline">';
+        for (var p = 0; p < picks.length; p++) {
+          var pick = picks[p];
+          if (!pick) continue;
+          var meta = bracketMeta[p] || { label: 'B?', cls: 'pick-b1' };
+          picksHtml += '<span class="pick-tag ' + meta.cls + '">'
+            + '<span class="pick-label">' + meta.label + '</span>'
+            + escapeHtml(pick)
+            + '</span>';
+        }
+        picksHtml += '</div>';
+
+        rows += '<tr class="' + rowClass + '">'
+          + '<td>' + rankCell + '</td>'
+          + '<td>' + overallCell + '</td>'
+          + '<td class="player-name-cell">' + escapeHtml(name) + '</td>'
+          + '<td class="' + scoreClass(score) + '">' + formatScore(score) + '</td>'
+          + '<td class="' + moveClass(move) + '">' + escapeHtml(String(move)) + '</td>'
+          + '<td class="picks-cell">' + picksHtml + '</td>'
+          + '<td class="tiebreaker-cell">' + escapeHtml(String(tb)) + '</td>'
+          + '</tr>';
+      }
+      tbody.innerHTML = rows;
+    }
+
+    /* ─── Render overall standings ─── */
+    function renderOverallStandings(top3, total) {
+      var container = document.getElementById('overall-standings');
+      if (!top3 || top3.length === 0) {
+        container.innerHTML = '<div class="standings-empty">No overall standings data available.</div>';
+        return;
+      }
+
+      var medals = ['🥇', '🥈', '🥉'];
+      var html = '<div class="standings-grid">';
+      for (var i = 0; i < top3.length; i++) {
+        var entry = top3[i];
+        var medal = medals[i] || '🏅';
+        var rankLabel = entry.overallRank ? ordinalSuffix(entry.overallRank) : '—';
+        var totalLabel = total ? ' <span class="rank-suffix">of ' + total + ' entries</span>' : '';
+        var scoreLabel = entry.totalScore !== undefined ? formatScore(entry.totalScore) : '—';
+        var scoreClsStr = scoreClass(entry.totalScore);
+
+        html += '<div class="standing-card">'
+          + '<div class="standing-medal">' + medal + '</div>'
+          + '<div class="standing-name">' + escapeHtml(entry.name || '—') + '</div>'
+          + '<div class="standing-rank">' + rankLabel + totalLabel + '</div>'
+          + '<div class="standing-score ' + scoreClsStr + '">' + scoreLabel + ' total</div>'
+          + '</div>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    /* ─── HTML escaping ─── */
+    function escapeHtml(str) {
+      var s = String(str);
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /* ─── Format date/time nicely ─── */
+    function formatUpdated(raw) {
+      if (!raw) return 'Updated just now';
+      try {
+        var d = new Date(raw);
+        if (isNaN(d.getTime())) return 'Updated: ' + raw;
+        return 'Updated ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return 'Updated: ' + raw;
+      }
+    }
+
+    /* ─── Config fetch (branding/palette) ─── */
+    function fetchConfig() {
+      var url = CONFIG_URL + '?mode=config&t=' + Date.now();
+      return fetch(url)
+        .then(function(res) {
+          if (!res.ok) { return null; }
+          return res.json();
+        })
+        .then(function(cfg) {
+          if (cfg && cfg.palette) {
+            applyTheme(cfg.palette);
+          }
+        })
+        .catch(function() {
+          /* Non-fatal — palette will be applied from group data or defaults used */
+        });
+    }
+
+    /* ─── Main fetch ─── */
+    function fetchGroupData(isRefresh) {
+      if (!CONFIG_URL || CONFIG_URL === 'CONFIG_URL_PLACEHOLDER') {
+        showError('Configuration error', 'CONFIG_URL has not been set. Please replace CONFIG_URL_PLACEHOLDER with your Google Apps Script URL.');
+        return;
+      }
+      if (!groupCode) {
+        showError('No group code provided', 'Please use the link provided by your organiser — it should include ?code=XXXXXX at the end.');
+        return;
+      }
+
+      var url = CONFIG_URL + '?mode=group&code=' + encodeURIComponent(groupCode) + '&t=' + Date.now();
+
+      fetch(url)
+        .then(function(res) {
+          if (!res.ok) { throw new Error('Server returned ' + res.status); }
+          return res.json();
+        })
+        .then(function(data) {
+          if (!data.ok) {
+            showError('Group not found', data.error || 'The group code "' + groupCode + '" was not found. Please check your link.');
+            return;
+          }
+
+          /* Apply palette from group data (takes precedence over config fetch) */
+          if (data.palette) {
+            applyTheme(data.palette);
+          }
+
+          entryCount = data.entryCount || 0;
+          var members = data.members || [];
+          var top3 = data.top3Overall || [];
+
+          /* Update hero */
+          document.getElementById('group-name').textContent = data.groupName || 'Private League';
+          document.getElementById('tournament-name').textContent = data.competitionName || data.tournamentName || '';
+          document.getElementById('group-code-label').textContent = data.groupName || 'Private League';
+          document.getElementById('updated-time').textContent = formatUpdated(data.lastUpdated);
+
+          /* Update footer */
+          document.getElementById('footer-group').textContent = data.groupName || 'Golf Sweep';
+
+          /* Stat pills */
+          var statRow = document.getElementById('stat-row');
+          document.getElementById('stat-group-name').textContent = data.groupName || '—';
+          document.getElementById('stat-count').textContent = members.length;
+          document.getElementById('stat-total').textContent = entryCount || '—';
+          statRow.style.display = '';
+
+          /* Member count sub-heading */
+          document.getElementById('member-count').textContent =
+            members.length + ' member' + (members.length === 1 ? '' : 's') + ' in this group';
+
+          /* Render table and standings */
+          renderGroupTable(members, entryCount);
+          renderOverallStandings(top3, entryCount);
+
+          /* Show shell */
+          document.getElementById('loading-screen').classList.add('hidden');
+          document.getElementById('shell').style.display = '';
+
+          /* Reset countdown */
+          countdownVal = 60;
+        })
+        .catch(function(err) {
+          if (!isRefresh) {
+            showError('Couldn\'t load group data', 'There was a problem fetching the leaderboard: ' + err.message + '. Please try again in a moment.');
+          }
+          /* On refresh errors, silently fail — don't hide already-showing data */
+          console.error('Fetch error:', err);
+        });
+    }
+
+    /* ─── Countdown + auto-refresh ─── */
+    function startCountdown() {
+      clearInterval(countdownTimer);
+      countdownTimer = setInterval(function() {
+        countdownVal--;
+        var el = document.getElementById('countdown');
+        if (el) el.textContent = countdownVal;
+        if (countdownVal <= 0) {
+          countdownVal = 60;
+          fetchGroupData(true);
+        }
+      }, 1000);
+    }
+
+    /* ─── Initial load ─── */
+    document.addEventListener('DOMContentLoaded', function() {
+      /* Validate CONFIG_URL early */
+      if (!CONFIG_URL || CONFIG_URL === 'CONFIG_URL_PLACEHOLDER') {
+        showError('Configuration error', 'CONFIG_URL has not been set. This page is not yet configured.');
+        return;
+      }
+      if (!groupCode) {
+        showError('No group code provided', 'Please use the link provided by your organiser — it should look like: private-league.html?code=XXXXXX');
+        return;
+      }
+
+      /* Fetch config for branding/palette, then load group data in parallel */
+      fetchConfig();
+      fetchGroupData(false);
+      startCountdown();
+    });
+  </script>
+</body>
+</html>
