@@ -446,6 +446,16 @@
     }
 
     var groupCode = getGroupCode();
+
+    // If no code in URL, check local storage
+    if (!groupCode) {
+      try { groupCode = localStorage.getItem('privateLeagueCode') || null; } catch(e) {}
+    }
+    // Save code to local storage for next visit
+    if (groupCode) {
+      try { localStorage.setItem('privateLeagueCode', groupCode); } catch(e) {}
+    }
+
     var countdownVal = 60;
     var countdownTimer = null;
     var refreshTimer = null;
