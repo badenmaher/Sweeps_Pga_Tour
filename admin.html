@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnipeGolf — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#F7F6F2; --surface:#FFFFFF; --surface-alt:#F9F8F5;
+    --border:#D4D1CA; --text:#28251D; --muted:#7A7974; --faint:#BAB9B4;
+    --primary:#01696F; --primary-hover:#0C4E54;
+    --error:#A12C7B; --warn:#964219; --success:#437A22;
+    --radius:10px; --shadow:0 8px 24px rgba(0,0,0,0.06);
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+  .wrap{max-width:820px;margin:0 auto;padding:24px 16px 80px}
+  header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+  header h1{font-size:22px;font-weight:700;margin:0}
+  header .who{color:var(--muted);font-size:13px}
+  .league-picker{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .league-picker label{font-size:13px;color:var(--muted);font-weight:500}
+  .league-picker select{flex:1;min-width:200px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;background:#fff;color:var(--text)}
+  section.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+  section.card h2{margin:0 0 4px;font-size:18px;font-weight:600}
+  section.card .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:520px){.grid{grid-template-columns:1fr}}
+  label.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--text)}
+  label.field span{color:var(--muted);font-weight:500}
+  input,select,textarea{padding:9px 10px;border:1px solid var(--border);border-radius:6px;font:inherit;background:#fff;color:var(--text);width:100%}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:var(--primary)}
+  textarea{min-height:180px;resize:vertical;font-family:inherit;line-height:1.55}
+  .row-btn{display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  button.primary{background:var(--primary);color:#fff;border:0;padding:10px 20px;border-radius:6px;font:600 14px 'Inter',sans-serif;cursor:pointer}
+  button.primary:hover{background:var(--primary-hover)}
+  button.primary:disabled{opacity:0.5;cursor:not-allowed}
+  .msg{font-size:13px;font-weight:500}
+  .msg.ok{color:var(--success)}
+  .msg.err{color:var(--error)}
+  .msg.info{color:var(--muted)}
+  .result{margin-top:12px;padding:10px 12px;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;font:13px/1.55 ui-monospace,Consolas,monospace;color:var(--text);word-break:break-all;display:none}
+  .result.show{display:block}
+  .result a{color:var(--primary)}
+  .banner{background:#FFF3E0;border:1px solid #FDDCB3;color:var(--warn);padding:10px 14px;border-radius:6px;font-size:13px;margin-bottom:16px;display:none}
+  .banner.show{display:block}
+  .full{grid-column:1/-1}
+  hr{border:0;border-top:1px solid var(--border);margin:18px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>SnipeGolf admin</h1>
+    <div class="who" id="who">Loading…</div>
+  </header>
+
+  <div id="authError" class="banner">
+    No admin key or key not recognised. Ask Baden for your admin link.
+  </div>
+
+  <div class="league-picker" id="leaguePicker" style="display:none">
+    <label for="leagueSel">League:</label>
+    <select id="leagueSel"></select>
+  </div>
+
+  <!-- ADD ENTRY -->
+  <section class="card" id="addEntryCard" style="display:none">
+    <h2>Add entry</h2>
+    <p class="sub">For shop / cash / bank entries. Creates the participant, emails them the picks link, logs a duplicate warning if the name or email already exists.</p>
+    <div class="grid">
+      <label class="field"><span>Display name *</span><input id="ae_name" type="text" autocomplete="off"></label>
+      <label class="field"><span>Email *</span><input id="ae_email" type="email" autocomplete="off"></label>
+      <label class="field"><span>Phone</span><input id="ae_phone" type="tel" autocomplete="off"></label>
+      <label class="field"><span>Paid method</span>
+        <select id="ae_method">
+          <option value="">—</option>
+          <option value="cash">Cash (shop)</option>
+          <option value="revolut">Revolut</option>
+          <option value="bank">Bank transfer</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label class="field"><span>Paid status</span>
+        <select id="ae_status">
+          <option value="unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
+        </select>
+      </label>
+      <label class="field full"><span>Notes</span><input id="ae_notes" type="text" placeholder="e.g. Paid Conor in shop 02/07"></label>
+    </div>
+    <div class="row-btn">
+      <button class="primary" id="ae_submit" type="button">Add entry</button>
+      <label style="font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center">
+        <input id="ae_force" type="checkbox"> Force create (skip duplicate check)
+      </label>
+      <span class="msg" id="ae_msg"></span>
+    </div>
+    <div class="result" id="ae_result"></div>
+  </section>
+
+  <!-- PRIZES -->
+  <section class="card" id="prizesCard" style="display:none">
+    <h2>Prizes</h2>
+    <p class="sub">Free text. Shown on the league page and in the entry email. Blank line between prizes if you want spacing.</p>
+    <textarea id="pz_text" placeholder="1st — €150 + Titleist Pro V1 dozen
+2nd — €80
+3rd — €40
+Longest drive Sat — €25 shop voucher"></textarea>
+    <div class="row-btn">
+      <button class="primary" id="pz_save" type="button">Save prizes</button>
+      <span class="msg" id="pz_msg"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var API = 'https://twilight-recipe-e213.badenmaher.workers.dev';
+
+  function qs(name){
+    var m = new RegExp('[?&]'+name+'=([^&]+)').exec(location.search);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  var KEY = qs('key');
+  var $ = function(id){ return document.getElementById(id); };
+
+  function showAuthErr(){ $('authError').classList.add('show'); $('who').textContent = ''; }
+
+  if (!KEY) { showAuthErr(); return; }
+
+  // Bootstrap: load leagues for this key
+  fetch(API + '/api/admin_leagues?key=' + encodeURIComponent(KEY))
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (j.error || !j.leagues || !j.leagues.length) { showAuthErr(); return; }
+      $('who').textContent = j.admin_name || '';
+      var sel = $('leagueSel');
+      for (var i=0;i<j.leagues.length;i++) {
+        var L = j.leagues[i];
+        var opt = document.createElement('option');
+        opt.value = L.league_slug;
+        opt.textContent = L.league_name + '  (' + L.comp_slug + ')';
+        opt.dataset.fee = L.entry_fee_eur || '';
+        sel.appendChild(opt);
+      }
+      $('leaguePicker').style.display = 'flex';
+      $('addEntryCard').style.display = 'block';
+      $('prizesCard').style.display = 'block';
+      sel.addEventListener('change', loadPrizes);
+      loadPrizes();
+    })
+    .catch(function(){ showAuthErr(); });
+
+  function currentLeague(){ return $('leagueSel').value; }
+
+  // ---- Add entry ----
+  $('ae_submit').addEventListener('click', function(){
+    var body = {
+      route: 'admin_entry',
+      key: KEY,
+      league_slug: currentLeague(),
+      display_name: $('ae_name').value.trim(),
+      email: $('ae_email').value.trim(),
+      phone: $('ae_phone').value.trim(),
+      paid_method: $('ae_method').value,
+      paid_status: $('ae_status').value,
+      notes: $('ae_notes').value.trim(),
+      force_create: $('ae_force').checked
+    };
+    if (!body.display_name || !body.email) {
+      $('ae_msg').className = 'msg err'; $('ae_msg').textContent = 'Name and email required'; return;
+    }
+    $('ae_msg').className = 'msg info'; $('ae_msg').textContent = 'Adding…';
+    $('ae_result').classList.remove('show');
+    $('ae_submit').disabled = true;
+
+    fetch(API + '/api/admin_entry', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }).then(function(r){ return r.json(); }).then(function(j){
+      $('ae_submit').disabled = false;
+      if (j.duplicate) {
+        $('ae_msg').className='msg err';
+        $('ae_msg').textContent = 'Duplicate — matches existing entry: ' + j.existing.display_name + ' (' + j.existing.email + ')';
+        $('ae_result').innerHTML = 'PID: <b>' + j.existing.pid + '</b> — status: ' + (j.existing.paid_status||'unpaid') + '<br>Tick "Force create" to add anyway or update.';
+        $('ae_result').classList.add('show');
+        return;
+      }
+      if (j.error) {
+        $('ae_msg').className='msg err';
+        $('ae_msg').textContent = 'Error: ' + j.error;
+        return;
+      }
+      if (j.ok) {
+        $('ae_msg').className='msg ok';
+        $('ae_msg').textContent = j.updated ? 'Updated existing entry' : 'Added';
+        var lines = [];
+        lines.push('PID: <b>' + j.pid + '</b>');
+        if (j.email_queued) lines.push('Email: queued (will drain on next hourly trigger)');
+        else lines.push('Email: sent');
+        $('ae_result').innerHTML = lines.join('<br>');
+        $('ae_result').classList.add('show');
+        $('ae_name').value=''; $('ae_email').value=''; $('ae_phone').value='';
+        $('ae_notes').value=''; $('ae_force').checked=false;
+      }
+    }).catch(function(){
+      $('ae_submit').disabled = false;
+      $('ae_msg').className='msg err';
+      $('ae_msg').textContent='Network error';
+    });
+  });
+
+  // ---- Prizes ----
+  function loadPrizes(){
+    var slug = currentLeague();
+    if (!slug) return;
+    $('pz_msg').className='msg info'; $('pz_msg').textContent = 'Loading…';
+    fetch(API + '/api/prizes?league=' + encodeURIComponent(slug))
+      .then(function(r){ return r.json(); }).then(function(j){
+        $('pz_msg').textContent = '';
+        if (j.ok) $('pz_text').value = j.text || '';
+        else $('pz_text').value = '';
+      }).catch(function(){ $('pz_msg').textContent=''; });
+  }
+
+  $('pz_save').addEventListener('click', function(){
+    var slug = currentLeague();
+    $('pz_msg').className='msg info'; $('pz_msg').textContent = 'Saving…';
+    $('pz_save').disabled = true;
+    fetch(API + '/api/prizes_save', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        route:'prizes_save',
+        key: KEY,
+        league: slug,
+        prizes_text: $('pz_text').value
+      })
+    }).then(function(r){ return r.json(); }).then(function(j){
+      $('pz_save').disabled = false;
+      if (j.ok) { $('pz_msg').className='msg ok'; $('pz_msg').textContent='Saved (' + j.chars + ' chars)'; }
+      else     { $('pz_msg').className='msg err'; $('pz_msg').textContent='Error: ' + (j.error||'unknown'); }
+    }).catch(function(){
+      $('pz_save').disabled = false;
+      $('pz_msg').className='msg err'; $('pz_msg').textContent='Network error';
+    });
+  });
+})();
+</script>
+</body>
+</html>
